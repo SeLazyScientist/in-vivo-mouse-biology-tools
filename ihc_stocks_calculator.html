@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IHC Stock Solution Calculator</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f5f5f3; padding: 1.5rem; color: #1a1a1a; }
+  h1 { font-size: 18px; font-weight: 500; margin: 0 0 1.25rem; }
+  .calc-card { background: #fff; border: 0.5px solid rgba(0,0,0,0.12); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+  .card-title { font-size: 15px; font-weight: 500; margin: 0; }
+  .badge { font-size: 11px; padding: 3px 10px; border-radius: 8px; }
+  .badge-teal { background: #E1F5EE; color: #0F6E56; }
+  .badge-blue { background: #E6F1FB; color: #185FA5; }
+  .badge-purple { background: #EEEDFE; color: #534AB7; }
+  .field-row { display: flex; align-items: center; gap: 10px; margin-bottom: 0.5rem; }
+  .field-label { font-size: 13px; color: #666; min-width: 160px; }
+  select, input[type="number"] { font-size: 13px; padding: 5px 8px; border: 0.5px solid rgba(0,0,0,0.2); border-radius: 8px; background: #f5f5f3; color: #1a1a1a; width: 110px; }
+  .result-box { background: #f5f5f3; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 0.75rem; }
+  .result-title { font-size: 11px; color: #888; margin: 0 0 6px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+  .result-step { font-size: 13px; color: #1a1a1a; line-height: 1.7; margin: 2px 0; }
+  .hl { font-weight: 500; }
+  .info { font-size: 12px; color: #666; margin: 4px 0 0; font-style: italic; }
+  .divider { border: none; border-top: 0.5px solid rgba(0,0,0,0.1); margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<h1>IHC stock solution calculator</h1>
+
+<!-- DAPI -->
+<div class="calc-card">
+  <div class="card-header">
+    <p class="card-title">DAPI working aliquots</p>
+    <span class="badge badge-blue">nuclear stain</span>
+  </div>
+  <p class="info" style="margin: 0 0 0.75rem;">Stock: 1 mg/mL liquid (pre-made)</p>
+  <div class="field-row">
+    <span class="field-label">Aliquot volume (µL)</span>
+    <select id="dapi-aliquot" onchange="calcDapi()">
+      <option value="50">50 µL</option>
+      <option value="100" selected>100 µL</option>
+      <option value="200">200 µL</option>
+      <option value="500">500 µL</option>
+    </select>
+  </div>
+  <div class="field-row">
+    <span class="field-label">Number of aliquots</span>
+    <input type="number" id="dapi-n" value="10" min="1" step="1" oninput="calcDapi()">
+  </div>
+  <hr class="divider">
+  <div class="result-box">
+    <p class="result-title">Preparation</p>
+    <p class="result-step" id="dapi-r1"></p>
+    <p class="result-step" id="dapi-r2"></p>
+    <p class="result-step" id="dapi-r3"></p>
+    <p class="result-step" id="dapi-r4"></p>
+  </div>
+</div>
+
+<!-- BSA -->
+<div class="calc-card">
+  <div class="card-header">
+    <p class="card-title">10% BSA in PBS</p>
+    <span class="badge badge-teal">blocking buffer</span>
+  </div>
+  <div class="field-row">
+    <span class="field-label">Total volume (mL)</span>
+    <select id="bsa-vol" onchange="calcBsa()">
+      <option value="5">5 mL</option>
+      <option value="10" selected>10 mL</option>
+      <option value="20">20 mL</option>
+      <option value="50">50 mL</option>
+    </select>
+  </div>
+  <div class="field-row">
+    <span class="field-label">Aliquot volume (mL)</span>
+    <select id="bsa-aliquot" onchange="calcBsa()">
+      <option value="0.5">0.5 mL</option>
+      <option value="1" selected>1 mL</option>
+      <option value="2">2 mL</option>
+    </select>
+  </div>
+  <hr class="divider">
+  <div class="result-box">
+    <p class="result-title">Preparation</p>
+    <p class="result-step" id="bsa-r1"></p>
+    <p class="result-step" id="bsa-r2"></p>
+    <p class="result-step" id="bsa-r3"></p>
+    <p class="result-step" id="bsa-r4"></p>
+  </div>
+</div>
+
+<!-- Triton -->
+<div class="calc-card">
+  <div class="card-header">
+    <p class="card-title">10% Triton X-100 in PBS</p>
+    <span class="badge badge-purple">permeabilisation</span>
+  </div>
+  <div class="field-row">
+    <span class="field-label">Total volume (mL)</span>
+    <select id="triton-vol" onchange="calcTriton()">
+      <option value="5">5 mL</option>
+      <option value="10" selected>10 mL</option>
+      <option value="20">20 mL</option>
+      <option value="50">50 mL</option>
+    </select>
+  </div>
+  <div class="field-row">
+    <span class="field-label">Aliquot volume (mL)</span>
+    <select id="triton-aliquot" onchange="calcTriton()">
+      <option value="0.5">0.5 mL</option>
+      <option value="1" selected>1 mL</option>
+      <option value="2">2 mL</option>
+    </select>
+  </div>
+  <hr class="divider">
+  <div class="result-box">
+    <p class="result-title">Preparation</p>
+    <p class="result-step" id="triton-r1"></p>
+    <p class="result-step" id="triton-r2"></p>
+    <p class="result-step" id="triton-r3"></p>
+    <p class="result-step" id="triton-r4"></p>
+  </div>
+</div>
+
+<script>
+function calcDapi() {
+  const aliquotUL = parseFloat(document.getElementById('dapi-aliquot').value);
+  const n = parseInt(document.getElementById('dapi-n').value) || 10;
+  const totalUL = aliquotUL * n;
+  const workingUgPerML = (1000 / 10000).toFixed(2); // 1mg/mL stock, 1:10000 → µg/mL
+  document.getElementById('dapi-r1').innerHTML = `Pipette <span class="hl">${totalUL} µL</span> from the 1 mg/mL stock into a fresh tube`;
+  document.getElementById('dapi-r2').innerHTML = `Aliquot into <span class="hl">${n}</span> × <span class="hl">${aliquotUL} µL</span> tubes — protect from light`;
+  document.getElementById('dapi-r3').innerHTML = `Store at <span class="hl">−20 °C</span>; avoid repeated freeze-thaw`;
+  document.getElementById('dapi-r4').innerHTML = `Working dilution: <span class="hl">1 µL</span> of stock into <span class="hl">10 mL PBS</span> = 1:10,000 → <span class="hl">${workingUgPerML} µg/mL</span>`;
+}
+
+function calcBsa() {
+  const vol = parseFloat(document.getElementById('bsa-vol').value);
+  const aliquot = parseFloat(document.getElementById('bsa-aliquot').value);
+  const bsaG = vol * 0.10;
+  const pbsML = vol - bsaG;
+  const nAliquots = Math.floor(vol / aliquot);
+  document.getElementById('bsa-r1').innerHTML = `Weigh <span class="hl">${bsaG.toFixed(2)} g</span> BSA (fraction V)`;
+  document.getElementById('bsa-r2').innerHTML = `Dissolve in ~<span class="hl">${(pbsML * 0.8).toFixed(1)} mL</span> PBS, then top up to <span class="hl">${vol} mL</span> total`;
+  document.getElementById('bsa-r3').innerHTML = `Filter-sterilise (0.22 µm), aliquot into <span class="hl">${nAliquots}</span> × <span class="hl">${aliquot} mL</span> tubes`;
+  document.getElementById('bsa-r4').innerHTML = `Store at <span class="hl">−20 °C</span>; stable for 6–12 months`;
+}
+
+function calcTriton() {
+  const vol = parseFloat(document.getElementById('triton-vol').value);
+  const aliquot = parseFloat(document.getElementById('triton-aliquot').value);
+  const tritonML = vol * 0.10;
+  const nAliquots = Math.floor(vol / aliquot);
+  document.getElementById('triton-r1').innerHTML = `Add <span class="hl">${tritonML.toFixed(2)} mL</span> Triton X-100 (neat, 100%) to a tube`;
+  document.getElementById('triton-r2').innerHTML = `Add PBS to <span class="hl">${vol} mL</span> total — stir gently (viscous)`;
+  document.getElementById('triton-r3').innerHTML = `Aliquot into <span class="hl">${nAliquots}</span> × <span class="hl">${aliquot} mL</span> tubes`;
+  document.getElementById('triton-r4').innerHTML = `Store at <span class="hl">RT</span> or 4 °C; stable for months`;
+}
+
+calcDapi(); calcBsa(); calcTriton();
+</script>
+</body>
+</html>
