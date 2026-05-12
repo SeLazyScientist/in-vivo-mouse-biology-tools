@@ -1,0 +1,1873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mouse breeding strategy planner</title>
+<style>
+:root {
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --surface-2: #f5f5f4;
+  --surface-3: #e7e5e4;
+  --border: rgba(0, 0, 0, 0.08);
+  --border-strong: rgba(0, 0, 0, 0.16);
+  --text: #1c1917;
+  --text-2: #57534e;
+  --text-3: #78716c;
+  --accent: #0d9488;
+  --accent-bg: #f0fdfa;
+  --accent-text: #115e59;
+  --accent-border: #5eead4;
+  --warn: #d97706;
+  --warn-bg: #fffbeb;
+  --warn-text: #92400e;
+  --warn-border: #fcd34d;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+  --danger-text: #991b1b;
+  --info: #2563eb;
+  --info-bg: #eff6ff;
+  --info-text: #1e40af;
+  --info-border: #93c5fd;
+  --purple-bg: #faf5ff;
+  --purple-text: #6b21a8;
+  --purple-border: #d8b4fe;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+  --shadow: 0 2px 6px rgba(0,0,0,0.05);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0c0a09;
+    --surface: #1c1917;
+    --surface-2: #292524;
+    --surface-3: #44403c;
+    --border: rgba(255,255,255,0.1);
+    --border-strong: rgba(255,255,255,0.2);
+    --text: #fafaf9;
+    --text-2: #d6d3d1;
+    --text-3: #a8a29e;
+    --accent: #2dd4bf;
+    --accent-bg: rgba(45,212,191,0.1);
+    --accent-text: #5eead4;
+    --accent-border: rgba(45,212,191,0.4);
+    --warn: #fbbf24;
+    --warn-bg: rgba(251,191,36,0.08);
+    --warn-text: #fcd34d;
+    --warn-border: rgba(251,191,36,0.4);
+    --danger: #f87171;
+    --danger-bg: rgba(248,113,113,0.08);
+    --danger-text: #fca5a5;
+    --info: #60a5fa;
+    --info-bg: rgba(96,165,250,0.08);
+    --info-text: #93c5fd;
+    --info-border: rgba(96,165,250,0.4);
+    --purple-bg: rgba(192,132,252,0.08);
+    --purple-text: #d8b4fe;
+    --purple-border: rgba(192,132,252,0.4);
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+.container { max-width: 1180px; margin: 0 auto; padding: 0 1.5rem; }
+header {
+  padding: 2.5rem 0 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+header h1 {
+  margin: 0 0 0.5rem;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+header p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 15px;
+  max-width: 720px;
+}
+nav.tabs {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0.5rem 0;
+  z-index: 10;
+  margin-bottom: 2rem;
+}
+nav.tabs .tab-row {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+nav.tabs .tab-row::-webkit-scrollbar { display: none; }
+nav.tabs button {
+  padding: 8px 16px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+nav.tabs button:hover { background: var(--surface-2); color: var(--text); }
+nav.tabs button.active { background: var(--accent-bg); color: var(--accent-text); }
+section.tab { display: none; padding-bottom: 4rem; }
+section.tab.active { display: block; }
+h2 { font-size: 20px; font-weight: 600; margin: 0 0 0.75rem; letter-spacing: -0.01em; }
+h3 { font-size: 16px; font-weight: 600; margin: 0 0 0.5rem; }
+h4 { font-size: 14px; font-weight: 600; margin: 0 0 0.35rem; }
+p { margin: 0 0 0.75rem; }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-sm);
+}
+.card.compact { padding: 1rem 1.25rem; }
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+.muted { color: var(--text-2); font-size: 14px; }
+.tiny { font-size: 12px; color: var(--text-3); }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+}
+@media (max-width: 720px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+.metric {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+}
+.metric-label { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 4px; }
+.metric-value { font-size: 22px; font-weight: 600; line-height: 1.3; }
+.metric-value.small { font-size: 14px; font-weight: 500; line-height: 1.4; }
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-right: 4px;
+  margin-bottom: 4px;
+}
+.tag.accent { background: var(--accent-bg); color: var(--accent-text); }
+.tag.warn { background: var(--warn-bg); color: var(--warn-text); }
+.tag.info { background: var(--info-bg); color: var(--info-text); }
+.tag.purple { background: var(--purple-bg); color: var(--purple-text); }
+.tag.danger { background: var(--danger-bg); color: var(--danger-text); }
+button.action {
+  padding: 8px 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+button.action:hover { background: var(--surface-2); border-color: var(--text-3); }
+button.action.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+button.action.primary:hover { background: var(--accent-text); }
+input[type="text"], input[type="number"], select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+}
+input[type="text"]:focus, input[type="number"]:focus, select:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  border-color: var(--accent);
+}
+input[type="range"] { width: 100%; accent-color: var(--accent); }
+label.field {
+  display: block;
+  margin-bottom: 0.85rem;
+}
+label.field > span {
+  display: block;
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+.checkbox-row input { accent-color: var(--accent); }
+
+/* Model type cards */
+.model-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+.model-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.model-card:hover { border-color: var(--text-3); transform: translateY(-1px); box-shadow: var(--shadow); }
+.model-card.active { border-color: var(--accent); background: var(--accent-bg); }
+.model-card h3 { font-size: 14px; margin: 0 0 0.25rem; }
+.model-card p { font-size: 13px; color: var(--text-2); margin: 0; line-height: 1.5; }
+
+/* Strain library */
+.library-controls {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.library-controls input { flex: 1; min-width: 200px; }
+.library-controls select { width: auto; min-width: 160px; }
+.strain-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.strain-card:hover { border-color: var(--text-3); transform: translateY(-1px); box-shadow: var(--shadow); }
+.strain-card h3 { font-size: 15px; margin: 0 0 0.25rem; }
+.strain-card .strain-meta { font-size: 12px; color: var(--text-3); margin-bottom: 0.5rem; }
+.strain-card .strain-desc { font-size: 13px; color: var(--text-2); margin: 0; }
+
+/* Modal-like detail panel */
+.detail-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem 1.75rem;
+  margin-bottom: 1.5rem;
+  box-shadow: var(--shadow);
+}
+.detail-panel h2 { font-size: 22px; margin-bottom: 0.25rem; }
+.detail-panel .subtitle { color: var(--text-2); font-size: 14px; font-style: italic; margin-bottom: 1rem; }
+.kv-list { display: grid; grid-template-columns: 160px 1fr; gap: 6px 16px; margin: 1rem 0; font-size: 14px; }
+.kv-list dt { color: var(--text-3); font-weight: 500; }
+.kv-list dd { margin: 0; color: var(--text); }
+.kv-list code { background: var(--surface-2); padding: 1px 6px; border-radius: 4px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; }
+
+/* Pitfall callout */
+.callout {
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  font-size: 14px;
+  line-height: 1.65;
+  border: 1px solid;
+}
+.callout.warn { background: var(--warn-bg); color: var(--warn-text); border-color: var(--warn-border); }
+.callout.info { background: var(--info-bg); color: var(--info-text); border-color: var(--info-border); }
+.callout.danger { background: var(--danger-bg); color: var(--danger-text); border-color: rgba(220,38,38,0.3); }
+.callout.accent { background: var(--accent-bg); color: var(--accent-text); border-color: var(--accent-border); }
+.callout h4 { margin: 0 0 0.4rem; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em; }
+.callout ul { margin: 0; padding-left: 1.25rem; }
+.callout li { margin-bottom: 0.4rem; }
+.callout li:last-child { margin-bottom: 0; }
+
+/* Punnett */
+.punnett-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.5rem 0 0.75rem;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 13px;
+}
+.punnett-table th, .punnett-table td {
+  border: 1px solid var(--border-strong);
+  padding: 10px 8px;
+  text-align: center;
+  vertical-align: middle;
+}
+.punnett-table th { background: var(--surface-2); font-weight: 600; font-size: 12px; }
+.punnett-table td.target { background: var(--accent-bg); color: var(--accent-text); font-weight: 600; }
+.punnett-table td .note { font-size: 11px; color: var(--text-3); font-family: inherit; margin-top: 2px; font-weight: 400; }
+.punnett-table td.target .note { color: var(--accent-text); opacity: 0.85; }
+.punnett-table td.lethal { background: var(--danger-bg); color: var(--danger-text); text-decoration: line-through; }
+
+/* Backcross chart */
+.backcross-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 1rem 0;
+}
+.backcross-table th, .backcross-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.backcross-table th { font-weight: 600; color: var(--text-2); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+.bar {
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+  width: 200px;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--info));
+  border-radius: 4px;
+}
+
+/* SVG scheme styling */
+.scheme-box-parent { fill: var(--purple-bg); stroke: var(--purple-border); stroke-width: 1; }
+.scheme-box-target { fill: var(--accent-bg); stroke: var(--accent-border); stroke-width: 1.5; }
+.scheme-box-intermediate { fill: var(--info-bg); stroke: var(--info-border); stroke-width: 1; }
+.scheme-text-title { fill: var(--text); font-size: 13px; font-weight: 600; font-family: -apple-system, sans-serif; }
+.scheme-text-sub { fill: var(--text-2); font-size: 11px; font-family: ui-monospace, monospace; }
+.scheme-arrow { stroke: var(--text-3); stroke-width: 1.5; fill: none; }
+
+/* Pitfalls grid */
+.pitfalls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+@media (max-width: 720px) { .pitfalls-grid { grid-template-columns: 1fr; } }
+.pitfall-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: var(--radius);
+  padding: 1rem 1.25rem;
+}
+.pitfall-item.danger { border-left-color: var(--danger); }
+.pitfall-item.info { border-left-color: var(--info); }
+.pitfall-item h4 { font-size: 14px; margin-bottom: 0.35rem; }
+.pitfall-item p { font-size: 13px; color: var(--text-2); margin-bottom: 0.4rem; }
+.pitfall-item .ref { font-size: 11px; color: var(--text-3); font-style: italic; }
+
+/* Hidden state */
+.hidden { display: none !important; }
+
+footer {
+  border-top: 1px solid var(--border);
+  padding: 1.5rem 0 2rem;
+  font-size: 12px;
+  color: var(--text-3);
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <h1>Mouse breeding strategy planner</h1>
+    <p>Browse mouse model types, look up well-known neuroscience strains and their published pitfalls, plan crosses (single-locus, multi-locus, intersectional, embryonic-lethal-aware), and work out backcrossing timelines.</p>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="container">
+    <div class="tab-row">
+      <button data-tab="models" class="active">Model types</button>
+      <button data-tab="library">Strain library</button>
+      <button data-tab="calculator">Cross calculator</button>
+      <button data-tab="backcross">Backcrossing</button>
+      <button data-tab="pitfalls">Pitfalls reference</button>
+      <button data-tab="about">About</button>
+    </div>
+  </div>
+</nav>
+
+<main class="container">
+
+<!-- ============ MODELS TAB ============ -->
+<section class="tab active" id="tab-models">
+  <h2>Pick a model type</h2>
+  <p class="muted">The seven categories below cover almost every mouse genetic model you will encounter in neuroscience. Each has its own breeding logic, controls, and characteristic artefacts.</p>
+  <div class="model-grid" id="model-grid"></div>
+
+  <div id="model-detail"></div>
+</section>
+
+<!-- ============ LIBRARY TAB ============ -->
+<section class="tab" id="tab-library">
+  <h2>Strain library</h2>
+  <p class="muted">Curated set of widely used neuroscience mouse models with background strain, JAX stock numbers (where applicable), recommended breeding scheme, and the published pitfalls people most often miss.</p>
+
+  <div class="library-controls">
+    <input type="text" id="library-search" placeholder="Search by name, gene, or keyword (e.g. APP, microglia, CaMKII)" />
+    <select id="library-filter">
+      <option value="all">All categories</option>
+      <option value="disease">Disease models</option>
+      <option value="cre">Cre / CreERT2 drivers</option>
+      <option value="reporter">Reporter / sensor lines</option>
+      <option value="other">Other (Flp, intersectional)</option>
+    </select>
+  </div>
+
+  <div id="library-detail"></div>
+  <div class="grid" id="library-grid"></div>
+</section>
+
+<!-- ============ CALCULATOR TAB ============ -->
+<section class="tab" id="tab-calculator">
+  <h2>Cross calculator</h2>
+  <p class="muted">Build a cross by specifying one to three loci. Toggle embryonic lethality if homozygous loss is non-viable, and toggle intersectional mode to require both Cre and Flp activity.</p>
+
+  <div class="card">
+    <h3>Cross setup</h3>
+    <div class="grid-2">
+      <div>
+        <label class="field">
+          <span>Number of loci tracked</span>
+          <select id="calc-nloci">
+            <option value="1">1 locus</option>
+            <option value="2" selected>2 loci</option>
+            <option value="3">3 loci (e.g. Cre × floxed × reporter)</option>
+          </select>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="calc-lethal" />
+          <span>Homozygous knockout is embryonic-lethal (adjust viable Mendelian ratios)</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="calc-intersectional" />
+          <span>Intersectional Cre + Flp (target requires both recombinases active)</span>
+        </label>
+        <label class="checkbox-row">
+          <input type="checkbox" id="calc-singlesex" />
+          <span>I need a single sex (halve effective probability)</span>
+        </label>
+      </div>
+      <div>
+        <div id="calc-loci-config"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Resulting offspring distribution</h3>
+    <div id="calc-distribution"></div>
+  </div>
+
+  <div class="card">
+    <h3>Cohort calculator</h3>
+    <label class="field">
+      <span>Mice of target genotype required: <strong id="calc-n-out">6</strong></span>
+      <input type="range" min="1" max="30" value="6" id="calc-n" />
+    </label>
+    <div class="grid-3">
+      <div class="metric">
+        <div class="metric-label">Per-pup probability</div>
+        <div class="metric-value" id="calc-p"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Expected weanlings</div>
+        <div class="metric-value" id="calc-expected"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Plan with 95% confidence</div>
+        <div class="metric-value" id="calc-buffer"></div>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-top: 0.75rem;">
+      <div class="metric">
+        <div class="metric-label">Approx litters</div>
+        <div class="metric-value" id="calc-litters"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Breeding pairs</div>
+        <div class="metric-value" id="calc-pairs"></div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">Time to data</div>
+        <div class="metric-value small" id="calc-time"></div>
+      </div>
+    </div>
+    <p class="tiny" style="margin-top: 0.75rem;">Assumptions: 7 pups per litter, 3 productive litters per pair, 8 weeks gestation+weaning per round. Add 1-2 backup pairs since not all set up successfully.</p>
+  </div>
+</section>
+
+<!-- ============ BACKCROSS TAB ============ -->
+<section class="tab" id="tab-backcross">
+  <h2>Backcrossing planner</h2>
+  <p class="muted">When you import a strain on a different (or mixed) background, you usually want it congenic to the strain your phenotype is calibrated against. This planner shows the percent donor genome remaining at each generation, and how speed congenic shortens the timeline.</p>
+
+  <div class="card">
+    <div class="grid-2">
+      <label class="field">
+        <span>Donor strain (the new allele)</span>
+        <select id="bc-donor">
+          <option>Mixed / unknown</option>
+          <option>129 substrain (e.g. ES-cell-derived)</option>
+          <option>FVB/N</option>
+          <option>BALB/c</option>
+          <option>C3H/HeJ</option>
+          <option>CD-1 / Swiss</option>
+        </select>
+      </label>
+      <label class="field">
+        <span>Recipient (target) background</span>
+        <select id="bc-recipient">
+          <option>C57BL/6J (JAX)</option>
+          <option>C57BL/6N (Charles River, Taconic, NIH)</option>
+          <option>BALB/cJ</option>
+          <option>FVB/NJ</option>
+          <option>129S6/SvEv</option>
+        </select>
+      </label>
+    </div>
+    <label class="checkbox-row">
+      <input type="checkbox" id="bc-speed" />
+      <span>Speed congenic (marker-assisted selection — pick best ~10% of pups each generation by SNP panel)</span>
+    </label>
+  </div>
+
+  <div class="card">
+    <h3>Generations to congenic</h3>
+    <table class="backcross-table" id="bc-table"></table>
+    <p class="tiny">Standard backcross: each generation halves the residual donor genome (50% → 25% → 12.5% → ...). Speed congenic exploits the variance — the lucky pup who inherited fewer donor segments is selected each round, reaching N5 equivalents by N3-N4.</p>
+  </div>
+
+  <div class="card">
+    <h3>Background strain notes</h3>
+    <div id="bc-notes"></div>
+  </div>
+</section>
+
+<!-- ============ PITFALLS TAB ============ -->
+<section class="tab" id="tab-pitfalls">
+  <h2>Pitfalls reference</h2>
+  <p class="muted">Strain- and technique-specific issues that have been published and burn time in real experiments. Sorted by how often they catch people out.</p>
+  <input type="text" id="pitfalls-search" placeholder="Search pitfalls (e.g. germline, tamoxifen, retinal, copy number)" style="margin-bottom: 1rem;" />
+  <div class="pitfalls-grid" id="pitfalls-grid"></div>
+</section>
+
+<!-- ============ ABOUT TAB ============ -->
+<section class="tab" id="tab-about">
+  <h2>About this tool</h2>
+  <div class="card">
+    <p>This is a planning aid, not a substitute for reading the original strain papers and the JAX or MGI datasheets. Phenotypes drift, sublines diverge, and what worked in one institution's colony will not always reproduce in another.</p>
+    <h3>Primary references for the calculation logic</h3>
+    <ul>
+      <li>Mendelian segregation: standard textbook (e.g. Nagy et al., <em>Manipulating the Mouse Embryo</em>).</li>
+      <li>Backcross genome residual: Silver, <em>Mouse Genetics: Concepts and Applications</em> (1995), updated by Wakeland et al., <em>Immunol Today</em> (1997) for speed congenic.</li>
+      <li>Cohort sizing under negative binomial: standard normal approximation, n &asymp; N/p + 1.645 &middot; &radic;(N(1-p))/p for one-sided 95% upper bound.</li>
+    </ul>
+    <h3>Strain pitfalls — sources</h3>
+    <p>Each strain card cites the original characterisation paper. Pitfalls are drawn from follow-up reports listed under each entry. JAX stock numbers are accurate at time of writing — verify on jax.org before ordering.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="container">
+    Mouse breeding strategy planner. Self-contained HTML — open in any modern browser. No data leaves this file.
+  </div>
+</footer>
+
+<script>
+// ============================================================
+// MODEL TYPE DATA
+// ============================================================
+const modelTypes = {
+  constitutiveKO: {
+    name: 'Constitutive knockout',
+    short: 'Germline gene deletion',
+    desc: 'Germline deletion of the gene. Absent in every cell from conception onwards.',
+    mechanism: 'Targeted disruption of the coding sequence (neo cassette, frameshift, or CRISPR indel) in the germline.',
+    parent1: { label: 'Het sire', genotype: 'KO/+' },
+    parent2: { label: 'Het dam', genotype: 'KO/+' },
+    target: { genotype: 'KO/KO', prob: 0.25 },
+    generations: 1,
+    weeks: 16,
+    pitfalls: [
+      'Embryonic or perinatal lethality is common — confirm Mendelian ratios in a pilot litter before scaling.',
+      'Whole-body loss-of-function may produce developmental compensation that masks the adult phenotype.',
+      'Different gene-trap vs full-knockout alleles of the same gene can give different phenotypes.'
+    ],
+    controls: 'Wild-type and heterozygous littermates from the same cross.',
+    punnett: { cols: ['+', 'KO'], rows: ['+', 'KO'], cells: [
+      [{g: '+/+', target: false, note: 'wild type'}, {g: 'KO/+', target: false, note: 'het'}],
+      [{g: 'KO/+', target: false, note: 'het'}, {g: 'KO/KO', target: true, note: 'knockout'}]
+    ]}
+  },
+  conditionalKO: {
+    name: 'Conditional knockout (Cre/loxP)',
+    short: 'Tissue-specific deletion',
+    desc: 'A floxed exon is excised by tissue- or cell-specific Cre. Gene is normal everywhere Cre stays silent.',
+    mechanism: 'LoxP sites flank a critical exon; Cre under a chosen promoter deletes the floxed sequence wherever active.',
+    parent1: { label: 'fl/+; Cre/+ sire', genotype: 'fl/+; Cre/+' },
+    parent2: { label: 'fl/fl dam', genotype: 'fl/fl' },
+    target: { genotype: 'fl/fl; Cre+', prob: 0.25 },
+    generations: 2,
+    weeks: 28,
+    pitfalls: [
+      'Cre by itself can have a phenotype ("Cre toxicity") — Cre-only controls are essential.',
+      'Recombination efficiency varies between tissues. Validate by qPCR, Western, or Cre reporter.',
+      'Some "neural" Cre lines have germline activity through the male — always validate transmission pattern.'
+    ],
+    controls: 'fl/fl; Cre-negative AND Cre-positive on +/+ background.',
+    punnett: { cols: ['fl;Cre', 'fl;+', '+;Cre', '+;+'], rows: ['fl'], cells: [[
+      {g: 'fl/fl; Cre+', target: true, note: 'cKO'},
+      {g: 'fl/fl; Cre−', target: false, note: 'fl ctrl'},
+      {g: 'fl/+; Cre+', target: false, note: 'het Cre'},
+      {g: 'fl/+; Cre−', target: false, note: 'het'}
+    ]]}
+  },
+  inducibleKO: {
+    name: 'Inducible knockout (CreERT2)',
+    short: 'Tamoxifen-timed deletion',
+    desc: 'Cre fused to a mutant ER. Tamoxifen lets it enter the nucleus — recombination is timed by the experimenter.',
+    mechanism: 'CreERT2 is sequestered by Hsp90; tamoxifen displaces it for nuclear import and loxP recombination.',
+    parent1: { label: 'fl/+; CreERT2/+ sire', genotype: 'fl/+; CreERT2/+' },
+    parent2: { label: 'fl/fl dam', genotype: 'fl/fl' },
+    target: { genotype: 'fl/fl; CreERT2+', prob: 0.25 },
+    generations: 2,
+    weeks: 30,
+    pitfalls: [
+      'Tamoxifen has biology of its own — ER signalling, GI toxicity, weight loss. Always include vehicle controls.',
+      'Recombination is often mosaic. Confirm dose, route, and washout window in your tissue with a reporter.',
+      'Leaky recombination without tamoxifen has been reported for several CreERT2 lines.'
+    ],
+    controls: 'Three arms: fl/fl; CreERT2+ + tamoxifen, fl/fl; CreERT2+ + vehicle, fl/fl; CreERT2− + tamoxifen.',
+    punnett: { cols: ['fl;CreER', 'fl;+', '+;CreER', '+;+'], rows: ['fl'], cells: [[
+      {g: 'fl/fl; CreER+', target: true, note: 'inducible cKO'},
+      {g: 'fl/fl; CreER−', target: false, note: 'fl ctrl'},
+      {g: 'fl/+; CreER+', target: false, note: 'het CreER'},
+      {g: 'fl/+; CreER−', target: false, note: 'het'}
+    ]]}
+  },
+  reporter: {
+    name: 'Reporter line (Cre-dependent)',
+    short: 'Lineage tracing / visualisation',
+    desc: 'A permanent fluorescent or enzymatic label switched on by Cre. Reads where Cre has been active.',
+    mechanism: 'LoxP-Stop-LoxP cassette upstream of a reporter at a safe-harbour locus (Rosa26, TIGRE). Cre removes the stop.',
+    parent1: { label: 'Cre driver sire', genotype: 'Cre/+' },
+    parent2: { label: 'LSL-tdT/LSL-tdT dam', genotype: 'LSL-tdT/LSL-tdT' },
+    target: { genotype: 'Cre+; LSL-tdT/+', prob: 0.5 },
+    generations: 1,
+    weeks: 14,
+    pitfalls: [
+      'Reporter signal records past Cre activity — a labelled cell is not necessarily one currently expressing Cre.',
+      'TIGRE-2 GCaMP reporters (Ai93/Ai94) can drive aberrant cortical activity at high expression.',
+      'Background recombination is reporter-line specific — always check Cre-negative littermates.'
+    ],
+    controls: 'Cre-negative; LSL-reporter/+ littermates to confirm no spontaneous reporter expression.',
+    punnett: { cols: ['Cre', '+'], rows: ['LSL'], cells: [[
+      {g: 'Cre+; LSL/+', target: true, note: 'reporter on'},
+      {g: 'Cre−; LSL/+', target: false, note: 'control'}
+    ]]}
+  },
+  knockIn: {
+    name: 'Knock-in / point mutation',
+    short: 'Defined edit at endogenous locus',
+    desc: 'A specific sequence — disease allele, tag, humanised exon — sits at the endogenous locus under its own regulation.',
+    mechanism: 'Homologous recombination in ES cells, or CRISPR HDR in zygotes. Expression timing and level mirror wild type.',
+    parent1: { label: 'KI het sire', genotype: 'KI/+' },
+    parent2: { label: 'KI het dam', genotype: 'KI/+' },
+    target: { genotype: 'KI/KI', prob: 0.25 },
+    generations: 1,
+    weeks: 16,
+    pitfalls: [
+      'Sanger-sequence the edit each generation. Selection cassettes or off-target indels can drift.',
+      'Adjacent regulatory elements may be silently disrupted by the insertion or by leftover loxP scars.',
+      'For tagged proteins, confirm function with the tag in place before drawing conclusions.'
+    ],
+    controls: 'Wild-type littermates. For tagged proteins, untagged WT and ideally a tag-only control at the same locus.',
+    punnett: { cols: ['+', 'KI'], rows: ['+', 'KI'], cells: [
+      [{g: '+/+', target: false, note: 'WT'}, {g: 'KI/+', target: false, note: 'het'}],
+      [{g: 'KI/+', target: false, note: 'het'}, {g: 'KI/KI', target: true, note: 'homo KI'}]
+    ]}
+  },
+  transgenic: {
+    name: 'Transgenic overexpression',
+    short: 'Random integration, gain of function',
+    desc: 'A randomly integrated transgene drives extra expression from a chosen promoter.',
+    mechanism: 'Pronuclear injection or piggyBac/Sleeping Beauty integration. Copy number and integration site differ between founders.',
+    parent1: { label: 'Tg hemi sire', genotype: 'Tg/+' },
+    parent2: { label: 'WT dam', genotype: '+/+' },
+    target: { genotype: 'Tg/+', prob: 0.5 },
+    generations: 1,
+    weeks: 14,
+    pitfalls: [
+      'Position effects — independent founders behave differently. Replicate phenotype on at least two lines.',
+      'Insertion may disrupt an endogenous gene. Periodic mapping of the integration site is wise.',
+      'Copy number can drift across generations — re-genotype by qPCR every 5-10 generations.'
+    ],
+    controls: 'Tg-negative littermates from the same cross. Never pool across founders without checking concordance.',
+    punnett: { cols: ['Tg', '+'], rows: ['+'], cells: [[
+      {g: 'Tg/+', target: true, note: 'transgenic'},
+      {g: '+/+', target: false, note: 'WT control'}
+    ]]}
+  },
+  intersectional: {
+    name: 'Intersectional Cre + Flp',
+    short: 'Cell-type AND projection specificity',
+    desc: 'Recombination requires both Cre and Flp to be active in the same cell. Used to isolate a subset (e.g. PV neurons projecting to a specific area).',
+    mechanism: 'Dual-conditional reporter or effector with both loxP-Stop-loxP and FRT-Stop-FRT cassettes. Only Cre+;Flp+ cells lose both stops.',
+    parent1: { label: 'Cre/+; Flp/+ sire', genotype: 'Cre/+; Flp/+' },
+    parent2: { label: 'Dual-cond reporter homo dam', genotype: 'INTRSECT/INTRSECT' },
+    target: { genotype: 'Cre+; Flp+; reporter/+', prob: 0.25 },
+    generations: 2,
+    weeks: 30,
+    pitfalls: [
+      'Three or more transgenes — colony management gets expensive fast. Plan for ~25% target probability and breed accordingly.',
+      'Each recombinase needs independent validation. Test Cre and Flp activity separately before combining.',
+      'Flp efficiency at the dual-conditional locus is often lower than Cre — expect mosaic labelling.'
+    ],
+    controls: 'Cre-only and Flp-only siblings (single recombinase should not give reporter signal).',
+    punnett: null
+  }
+};
+
+// ============================================================
+// STRAIN LIBRARY DATA
+// ============================================================
+const strains = [
+  // ====== DISEASE MODELS ======
+  {
+    id: 'app-nlgf', name: 'App^NL-G-F (humanized APP knock-in)',
+    category: 'disease', subcategory: 'Alzheimer / amyloid',
+    background: 'C57BL/6J', fullName: 'App^tm3.1Tcs (Saito allele)',
+    reference: 'Saito et al., Nat Neurosci 17:661 (2014)',
+    jax: '034711',
+    target: 'App^NL-G-F/NL-G-F (homozygous viable)',
+    desc: 'Humanized Aβ region with Swedish, Iberian, and Arctic mutations knocked into the endogenous App locus. Avoids APP-overexpression artefacts of older transgenic AD lines.',
+    breeding: 'Homozygous × homozygous (line is healthy and fertile). Compare against WT C57BL/6J controls bred separately.',
+    onset: 'Aβ plaques from ~2 mo, robust by 4 mo, behavioural deficits 6-12 mo. Microgliosis tracks plaques closely.',
+    pitfalls: [
+      'C57BL/6J background carries the Nnt deletion — affects mitochondrial NADPH metabolism, relevant for some metabolic readouts.',
+      'Phenotype is age-dependent. Pilot at multiple timepoints; do not extrapolate from one age.',
+      'Tau pathology is minimal — this is an amyloidosis model, not a full AD model. Pair with rTg4510 or P301S tau line if you need both pathologies.',
+      'App^NL-F (without Arctic) has milder pathology and is sometimes preferred for slow longitudinal studies.'
+    ],
+    cohortNote: 'Homozygous breeding gives 100% experimental animals. Allow extra time if importing — embryo rederivation adds ~6 mo.',
+    keywords: ['alzheimer', 'amyloid', 'AD', 'APP', 'plaques', 'knock-in', 'saito', 'humanized']
+  },
+  {
+    id: '5xfad', name: '5xFAD',
+    category: 'disease', subcategory: 'Alzheimer / amyloid',
+    background: 'B6SJL F1 (original) — congenic C57BL/6J also available',
+    fullName: 'Tg(APPSwFlLon, PSEN1*M146L*L286V)6799Vas',
+    reference: 'Oakley et al., J Neurosci 26:10129 (2006)',
+    jax: '034840 (B6) / 006554 (B6SJL)',
+    target: 'Tg/+ hemizygous',
+    desc: 'Five FAD mutations across human APP and PSEN1 driven by the Thy1 promoter. Aggressive amyloidosis with plaques visible from ~2 months.',
+    breeding: 'Hemi × WT — homozygous transgenics are often non-viable or sick. Use Tg-negative littermates as controls.',
+    onset: 'Plaques 2 mo, gliosis 2-3 mo, memory deficits 4-6 mo, neuron loss 9-12 mo.',
+    pitfalls: [
+      'B6SJL background carries Pde6b^rd1 (retinal degeneration) — confounds Morris water maze, visual cliff, and any vision-dependent task. Switch to the congenic B6 line (JAX 034840).',
+      'Sex differences are pronounced — females have earlier and heavier pathology. Power your study on sex.',
+      'Transgene copy number drifts. Re-verify by qPCR every 5-10 generations.',
+      'Some sublines have a recombined transgene with reduced expression — characterised by Forner et al. (2021) Sci Data 8:113.'
+    ],
+    cohortNote: 'Hemi × WT yields 50% Tg+ pups. n=12 weanlings per genotype is a common starting point given variance.',
+    keywords: ['alzheimer', 'amyloid', 'AD', 'APP', 'PSEN1', 'thy1', 'oakley']
+  },
+  {
+    id: '3xtg', name: '3xTg-AD',
+    category: 'disease', subcategory: 'Alzheimer / amyloid + tau',
+    background: 'Mixed 129/C57BL6/C7BL/6;129X1/SvJ — never fully congenic',
+    fullName: 'Psen1^tm1Mpm Tg(APPSwe,tauP301L)1Lfa',
+    reference: 'Oddo et al., Neuron 39:409 (2003)',
+    jax: '034830 (homozygous)',
+    target: 'Homozygous for all three transgenes',
+    desc: 'Three transgenes (PS1-M146V knock-in, APP-Swedish, tau-P301L) in one line. Both plaques and tangles, in cascade.',
+    breeding: 'Homozygous × homozygous on the proprietary mixed background. Do not outcross — phenotype falls apart.',
+    onset: 'Aβ from ~6 mo, tau pathology from ~12 mo, cognitive deficits 4-6 mo. Strongly sex-dimorphic.',
+    pitfalls: [
+      'Mixed background means littermate controls are ESSENTIAL — non-littermate WT B6 is not a fair comparison.',
+      'Phenotype has shifted across generations and labs (Belfiore et al. 2019, Aging Cell 18:e12873). Re-baseline if you have not used the line in a while.',
+      'Female-biased pathology — many published phenotypes are female-only.',
+      'Genotyping can miss silent transgene loss; confirm by Western for human APP and tau.'
+    ],
+    cohortNote: 'Use sex- and litter-matched non-Tg WT controls bred from the same colony, not mail-order B6.',
+    keywords: ['alzheimer', 'AD', 'tau', 'APP', 'PSEN1', 'plaques', 'tangles', 'oddo', '3xtg']
+  },
+  {
+    id: 'p301s', name: 'PS19 (MAPT-P301S)',
+    category: 'disease', subcategory: 'Tauopathy',
+    background: 'C57BL/6;C3H mixed (original); congenic B6 available',
+    fullName: 'Tg(Prnp-MAPT*P301S)PS19Vle',
+    reference: 'Yoshiyama et al., Neuron 53:337 (2007)',
+    jax: '008169',
+    target: 'Tg/+ hemizygous',
+    desc: '4R1N human tau with P301S mutation under the prion promoter. Tangles, neurodegeneration, paralysis from ~6-9 mo.',
+    breeding: 'Hemi × WT. Homozygous animals have severe phenotype, often used unintentionally.',
+    onset: 'Hyperphosphorylated tau ~3 mo, tangles ~6 mo, hindlimb paralysis 8-10 mo, premature death.',
+    pitfalls: [
+      'Founder line on mixed background — make sure you import the congenic version if your readouts require pure B6.',
+      'Phenotype severity varies hugely between colonies; confirm at known timepoints before designing the experiment.',
+      'Animals reach humane endpoint quickly once paralysis starts — set criteria and monitor 3× weekly past 6 mo.'
+    ],
+    cohortNote: 'Plan for ~10-15% attrition by 9 mo. Stagger cohorts so all reach a given age in the same week.',
+    keywords: ['tau', 'tauopathy', 'PS19', 'P301S', 'prion', 'yoshiyama']
+  },
+  {
+    id: 'sod1-g93a', name: 'SOD1-G93A',
+    category: 'disease', subcategory: 'ALS',
+    background: 'B6SJL F1 (high copy) — congenic B6 also available',
+    fullName: 'Tg(SOD1*G93A)1Gur',
+    reference: 'Gurney et al., Science 264:1772 (1994)',
+    jax: '002726 (high copy) / 004435 (low copy)',
+    target: 'Tg/+ hemizygous',
+    desc: 'Human SOD1 with G93A mutation. The classic ALS model. Motor neuron loss, paralysis, death.',
+    breeding: 'Hemi × WT only — homozygous embryonic lethal. Critical: monitor copy number by qPCR every 4-6 generations.',
+    onset: 'Symptoms 90-100 d (high copy B6SJL), 130-160 d (low copy or B6). Death 130-160 d / 180-220 d.',
+    pitfalls: [
+      'TRANSGENE COPY NUMBER DRIFTS DOWNWARDS over generations and silent loss extends lifespan dramatically. Re-genotype quantitatively before any longevity study (Alexander et al. 2004 J Neurosci 24:818).',
+      'B6SJL background brings retinal degeneration and SJL-specific traits.',
+      'Lifespan is sex-dependent and litter-dependent — power generously.',
+      'Many "negative" ALS drug trials in this model failed pre-registration scrutiny because of unrecognised copy number drift.'
+    ],
+    cohortNote: 'For survival studies, use n≥15 per group and randomise across cages. Co-house Tg with WT to avoid cage-effects on lifespan.',
+    keywords: ['ALS', 'SOD1', 'motor neuron', 'paralysis', 'gurney']
+  },
+  {
+    id: 'r6-2', name: 'R6/2',
+    category: 'disease', subcategory: 'Huntington',
+    background: 'B6CBA F1 — kept on this background',
+    fullName: 'B6CBA-Tg(HDexon1)62Gpb',
+    reference: 'Mangiarini et al., Cell 87:493 (1996)',
+    jax: '002810',
+    target: 'Tg/+ hemizygous',
+    desc: 'Exon 1 of human HTT with ~150 CAG repeats. Early-onset, fast-progressing Huntington model.',
+    breeding: 'Maintained by ovarian transplant or sperm-IVF — males are infertile by symptom onset. JAX provides a defined-CAG-repeat colony.',
+    onset: 'Symptoms 6-8 weeks, death 12-16 weeks.',
+    pitfalls: [
+      'CAG repeat length DRIFTS in colony breeding (typically expanding) — order fresh from JAX or use IVF rederivation regularly.',
+      'Repeat length determines onset — a 5% drift can shift the experimental window by weeks.',
+      'B6CBA background is required; congenic B6 versions show reduced phenotype.'
+    ],
+    cohortNote: 'Order pre-symptomatic mice direct from JAX for tightly-timed cohorts. n=12-15 per group typical.',
+    keywords: ['huntington', 'HTT', 'CAG', 'R6/2', 'mangiarini']
+  },
+  {
+    id: 'q175', name: 'Q175 / zQ175',
+    category: 'disease', subcategory: 'Huntington',
+    background: 'C57BL/6J',
+    fullName: 'Htt^tm1Mfc (Q175)',
+    reference: 'Menalled et al., PLoS One 7:e49838 (2012)',
+    jax: '027410 (Q175 hemi) / 029928 (zQ175 with neo deleted)',
+    target: 'Q175/+ heterozygous',
+    desc: 'Knock-in of ~190 CAG repeats into the endogenous mouse Htt locus. Slower, more human-like progression than R6/2.',
+    breeding: 'Het × WT (or het × het for homozygous studies, with caveats — homozygous is more severe).',
+    onset: 'Aggregates 4-6 mo, motor 6-9 mo, behavioural deficits ~8-12 mo. Long experimental window.',
+    pitfalls: [
+      'Q175 with neo cassette has reduced HTT expression vs zQ175; the two are NOT interchangeable.',
+      'CAG length verifies less reliably than transgenic models — use a sequencing-based assay, not just fragment analysis.',
+      'Homozygous is severely affected — most studies use heterozygous to model human HD.'
+    ],
+    cohortNote: 'For motor longitudinal studies, plan 8-15 mo follow-up. Het × WT gives 50% experimental.',
+    keywords: ['huntington', 'HTT', 'CAG', 'Q175', 'knock-in', 'menalled']
+  },
+  {
+    id: 'a53t', name: 'A53T α-synuclein',
+    category: 'disease', subcategory: 'Parkinson / synucleinopathy',
+    background: 'C57BL/6;C3H mixed; B6 congenic available',
+    fullName: 'Tg(Prnp-SNCA*A53T)83Vle',
+    reference: 'Giasson et al., Neuron 34:521 (2002)',
+    jax: '004479',
+    target: 'Tg/+ hemizygous',
+    desc: 'Human α-synuclein-A53T under the prion promoter. Motor symptoms, α-syn aggregates, premature death.',
+    breeding: 'Hemi × WT.',
+    onset: '8-16 mo for motor phenotype, 10-22 mo lifespan.',
+    pitfalls: [
+      'Phenotype onset is highly variable — single-mouse studies are unreliable.',
+      'No nigrostriatal dopaminergic loss — this is a synucleinopathy, not full PD. Pair with a 6-OHDA or MPTP lesion if you need DA neuron death.',
+      'PrP-promoter transgenes also express in glia — phenotype is not pure neuronal.'
+    ],
+    cohortNote: 'For lifespan: n≥15-20 per group. Stagger by sex and date of birth.',
+    keywords: ['parkinson', 'PD', 'alpha-synuclein', 'SNCA', 'A53T', 'giasson']
+  },
+
+  // ====== CRE / CreERT2 LINES ======
+  {
+    id: 'nestin-cre', name: 'Nestin-Cre (Tronche)',
+    category: 'cre', subcategory: 'Pan-neural',
+    background: 'C57BL/6 (originally mixed)',
+    fullName: 'Tg(Nes-cre)1Kln',
+    reference: 'Tronche et al., Nat Genet 23:99 (1999)',
+    jax: '003771',
+    target: 'Cre-positive offspring',
+    desc: 'Pan-neural Cre driver. Active in neural progenitors from E10.5; recombines essentially all CNS cells by birth.',
+    breeding: 'Hemi × homozygous floxed. ALWAYS pass Cre through the female where possible (see pitfalls).',
+    onset: 'Recombination from E10.5; complete in CNS by birth.',
+    pitfalls: [
+      'GERMLINE RECOMBINATION through paternal transmission is well-documented (Liang et al. 2012; Galichet et al. 2010 PLoS One). If a male carries Nestin-Cre and a floxed allele, his sperm can carry the recombined null. ALWAYS set the female as the Cre carrier, or breed male Cre+ to fl/+ and rigorously genotype.',
+      'Hypothalamic and pituitary ectopic expression has been reported — affects metabolic phenotyping.',
+      'Nestin-Cre alone has a metabolic phenotype: smaller body, altered glucose handling (Declercq et al. 2015 Mol Metab 4:206). Cre-only controls are essential.',
+      'Some leak in liver and pancreas.'
+    ],
+    cohortNote: 'Het Cre × fl/fl gives 50% target. With paternal-Cre caveat, set up Cre as the dam.',
+    keywords: ['cre', 'nestin', 'pan-neural', 'tronche', 'germline']
+  },
+  {
+    id: 'emx1-cre', name: 'Emx1-Cre',
+    category: 'cre', subcategory: 'Cortex / hippocampus',
+    background: 'C57BL/6J',
+    fullName: 'Emx1^tm1(cre)Krj',
+    reference: 'Gorski et al., J Neurosci 22:6309 (2002)',
+    jax: '005628',
+    target: 'Cre+',
+    desc: 'Knock-in Cre at Emx1 locus. Recombines in dorsal telencephalon — cortical and hippocampal excitatory neurons plus astrocytes.',
+    breeding: 'Het × homozygous floxed. Knock-in line — no transgene copy issues.',
+    onset: 'E10.5 onwards, complete by birth.',
+    pitfalls: [
+      'Recombines in BOTH neurons AND astrocytes (and a fraction of oligodendrocytes) in cortex/hippocampus. Not a pure neuronal driver.',
+      'Some peripheral expression; check for liver and gonad contamination if studying systemic phenotypes.',
+      'Cortical intermediate progenitors recombine — useful for development, complicating for adult-only manipulations.'
+    ],
+    cohortNote: 'Knock-in is well-tolerated; Cre/+ is functionally a heterozygous Emx1 KO so expect mild phenotype on its own (rarely matters but worth checking).',
+    keywords: ['cre', 'emx1', 'cortex', 'hippocampus', 'gorski', 'pyramidal']
+  },
+  {
+    id: 'nex-cre', name: 'NEX-Cre / Neurod6-Cre',
+    category: 'cre', subcategory: 'Cortical pyramidal neurons',
+    background: 'C57BL/6',
+    fullName: 'Neurod6^tm1(cre)Kan',
+    reference: 'Goebbels et al., Genesis 44:611 (2006)',
+    jax: 'not at JAX (Goebbels lab)',
+    target: 'Cre+',
+    desc: 'Knock-in Cre at Neurod6/NEX. Expresses in postmitotic cortical and hippocampal pyramidal neurons. Cleaner than Emx1-Cre — no glia, no progenitors.',
+    breeding: 'Het × homozygous floxed.',
+    onset: 'E11.5 in postmitotic neurons.',
+    pitfalls: [
+      'Cre/+ animals are heterozygous Neurod6 — mild but check, particularly for differentiation phenotypes.',
+      'Not yet at JAX — line distribution is via the Goebbels lab; plan for MTA delays.',
+      'Some recombination in early-born hindbrain neurons — region-specific verification advised.'
+    ],
+    cohortNote: 'Excellent specificity for excitatory neurons in cortex. Use over Emx1-Cre when you want to exclude glia.',
+    keywords: ['cre', 'NEX', 'neurod6', 'cortex', 'pyramidal', 'goebbels']
+  },
+  {
+    id: 'camk2a-cre', name: 'CaMKIIα-Cre (T29-1)',
+    category: 'cre', subcategory: 'Forebrain excitatory',
+    background: 'C57BL/6',
+    fullName: 'Tg(Camk2a-cre)T29-1Stl',
+    reference: 'Tsien et al., Cell 87:1317 (1996)',
+    jax: '005359',
+    target: 'Cre+',
+    desc: 'Forebrain-restricted Cre under the CaMKIIα promoter. Active postnatally in cortical and hippocampal excitatory neurons.',
+    breeding: 'Hemi × homozygous floxed.',
+    onset: 'P10-P21 postnatal — useful for adult-onset deletion in excitatory forebrain neurons.',
+    pitfalls: [
+      'Recombination is mosaic and varies between sub-lines — the original T29-1 is most cited but T50 and others exist with different patterns.',
+      'Some lines show ectopic recombination in dentate gyrus or striatum.',
+      'Drift across generations — re-validate the recombination pattern with a reporter every 5-10 generations.',
+      'Male transmission can give germline recombination of some floxed alleles (less severe than Nestin but documented).'
+    ],
+    cohortNote: 'For adult-onset cortical/hippocampal phenotypes only — earlier deletion needs a different driver.',
+    keywords: ['cre', 'CaMKII', 'camk2a', 'tsien', 'forebrain', 'excitatory']
+  },
+  {
+    id: 'gfap-cre-7312', name: 'mGFAP-Cre 73.12',
+    category: 'cre', subcategory: 'Astrocytes (and progenitors)',
+    background: 'C57BL/6',
+    fullName: 'Tg(Gfap-cre)73.12Mvs',
+    reference: 'Garcia et al., Nat Neurosci 7:1233 (2004)',
+    jax: '012886',
+    target: 'Cre+',
+    desc: 'Cre under mouse GFAP promoter. Active in astrocytes — but also in neural progenitors prenatally.',
+    breeding: 'Hemi × homozygous floxed.',
+    onset: 'E13.5 onwards (progenitors), persists in adult astrocytes.',
+    pitfalls: [
+      'NOT astrocyte-specific. Recombines in radial glia / neural progenitors prenatally, so floxed-allele deletion appears in many neurons too. Use Aldh1l1-CreERT2 if you need adult-astrocyte specificity.',
+      'hGFAP-Cre (a separate line) is even more progenitor-like.',
+      'Some peripheral GFAP-expressing cells (Schwann cells, enteric glia) also recombine.'
+    ],
+    cohortNote: 'For "astrocyte" experiments, prefer Aldh1l1-CreERT2 with tamoxifen at adult stage.',
+    keywords: ['cre', 'GFAP', 'astrocyte', 'garcia', 'progenitor']
+  },
+  {
+    id: 'aldh1l1-creert2', name: 'Aldh1l1-CreERT2',
+    category: 'cre', subcategory: 'Astrocytes (inducible)',
+    background: 'C57BL/6J',
+    fullName: 'Tg(Aldh1l1-cre/ERT2)1Khakh',
+    reference: 'Srinivasan et al., Neuron 92:1181 (2016)',
+    jax: '029655',
+    target: 'CreERT2+ after tamoxifen',
+    desc: 'Inducible Cre under Aldh1l1 BAC. Pan-astrocyte specificity in adult brain; tamoxifen times the deletion.',
+    breeding: 'Hemi × homozygous floxed. Tamoxifen at the desired age.',
+    onset: 'Tamoxifen-dependent. Typical: 5× 100 mg/kg IP at 6-8 weeks.',
+    pitfalls: [
+      'Tamoxifen GI toxicity in this line is moderate — do not exceed the published dose without piloting.',
+      'Recombination efficiency is ~70-90% in cortex, lower in white matter — verify by Ai14 reporter.',
+      'Some leak in oligodendrocyte lineage cells.',
+      'Cre-only controls + vehicle controls + Cre-negative + tamoxifen — three arms, always.'
+    ],
+    cohortNote: 'For adult astrocyte specificity, this is the current best choice. Plan tamoxifen + 2-3 wk washout before phenotyping.',
+    keywords: ['cre', 'CreERT2', 'aldh1l1', 'astrocyte', 'srinivasan', 'inducible']
+  },
+  {
+    id: 'cx3cr1-creert2', name: 'Cx3cr1-CreERT2 (Litt)',
+    category: 'cre', subcategory: 'Microglia (inducible)',
+    background: 'C57BL/6J',
+    fullName: 'Cx3cr1^tm2.1(cre/ERT2)Litt',
+    reference: 'Yona et al., Immunity 38:79 (2013)',
+    jax: '021160',
+    target: 'CreERT2+ after tamoxifen + 4 week washout',
+    desc: 'Inducible Cre at Cx3cr1 locus. Active in microglia and circulating monocytes — but the long half-life of microglia vs short half-life of monocytes lets you separate them with a washout.',
+    breeding: 'Het × homozygous floxed. Tamoxifen + 4-6 week washout to clear monocyte pool.',
+    onset: 'Tamoxifen-dependent. Critical: wait 4-6 weeks post-tamoxifen so blood monocytes turn over but microglia retain the edit.',
+    pitfalls: [
+      'Cx3cr1 itself is haploinsufficient — Cre/+ animals lose one copy and have a microglial phenotype on their own. Always Cre-only controls.',
+      'A separate Cx3cr1-Cre (constitutive, Jung 2000) recombines in embryonic yolk-sac progenitors and extra cell types — do not confuse with the CreERT2 version.',
+      'Without the washout, peripheral monocytes are also edited and contaminate any "microglia-specific" experiment.',
+      'Jax 021160 (Litt) and the Jung Cx3cr1-Cre (021160? actually 005582) are different lines — verify the strain ID carefully.'
+    ],
+    cohortNote: 'Plan ≥10 weeks from tamoxifen start to experiment (4 wk dosing + 4-6 wk washout). Verify the Cre-only haploinsufficiency baseline.',
+    keywords: ['cre', 'CreERT2', 'cx3cr1', 'microglia', 'yona', 'immunity', 'monocyte']
+  },
+  {
+    id: 'pv-cre', name: 'PV-Cre (Pvalb-IRES-Cre)',
+    category: 'cre', subcategory: 'Parvalbumin interneurons',
+    background: 'C57BL/6J',
+    fullName: 'Pvalb^tm1(cre)Arbr',
+    reference: 'Hippenmeyer et al., PLoS Biol 3:e159 (2005)',
+    jax: '017320',
+    target: 'Cre+',
+    desc: 'Knock-in IRES-Cre at Pvalb locus. Faithful expression in PV+ interneurons across cortex, hippocampus, striatum, cerebellum.',
+    breeding: 'Het × homozygous floxed. Knock-in — single-copy.',
+    onset: 'P10-P21, matching endogenous Pvalb expression.',
+    pitfalls: [
+      'IRES-Cre lines have lower Cre expression than direct fusions — recombination of poorly accessible floxed alleles can be incomplete.',
+      'Some peripheral PV expression (skeletal muscle) — minor for most CNS studies.',
+      'Cre/+ is heterozygous Pvalb — likely silent but check for sensitive readouts.'
+    ],
+    cohortNote: 'Pair with Ai14 to confirm PV pattern in your cortex region of interest.',
+    keywords: ['cre', 'PV', 'parvalbumin', 'pvalb', 'interneuron', 'hippenmeyer']
+  },
+  {
+    id: 'sst-cre', name: 'SST-IRES-Cre',
+    category: 'cre', subcategory: 'Somatostatin interneurons',
+    background: 'C57BL/6J',
+    fullName: 'Sst^tm2.1(cre)Zjh',
+    reference: 'Taniguchi et al., Neuron 71:995 (2011)',
+    jax: '013044',
+    target: 'Cre+',
+    desc: 'IRES-Cre knock-in at Sst. Captures SST+ interneurons (Martinotti, X94, etc.) in cortex/hippocampus, plus enteric and pancreatic SST.',
+    breeding: 'Het × homozygous floxed.',
+    onset: 'P5 onwards in cortex.',
+    pitfalls: [
+      'Recombines in non-neural SST-expressing cells (gut, pancreas, hypothalamus). Watch for systemic confounds.',
+      'Subtype heterogeneity within SST is large — Cre+ pools several functionally distinct populations.'
+    ],
+    cohortNote: 'Standard interneuron driver — IRES-Cre is well-tolerated.',
+    keywords: ['cre', 'SST', 'somatostatin', 'interneuron', 'taniguchi']
+  },
+  {
+    id: 'vip-cre', name: 'VIP-IRES-Cre',
+    category: 'cre', subcategory: 'VIP interneurons',
+    background: 'C57BL/6J',
+    fullName: 'Vip^tm1(cre)Zjh',
+    reference: 'Taniguchi et al., Neuron 71:995 (2011)',
+    jax: '010908',
+    target: 'Cre+',
+    desc: 'IRES-Cre knock-in at Vip. Targets VIP+ interneurons — disinhibitory motif in cortex.',
+    breeding: 'Het × homozygous floxed.',
+    onset: 'P10 onwards.',
+    pitfalls: [
+      'VIP is also expressed in suprachiasmatic nucleus, gut, and other peripheral sites — region-specific manipulation needs viral injection.',
+      'Some overlap with calretinin+ cells.'
+    ],
+    cohortNote: 'Standard third-leg of the PV/SST/VIP interneuron triumvirate.',
+    keywords: ['cre', 'VIP', 'vasoactive', 'interneuron', 'taniguchi']
+  },
+  {
+    id: 'vgat-cre', name: 'Vgat-IRES-Cre (Slc32a1)',
+    category: 'cre', subcategory: 'All GABAergic',
+    background: 'C57BL/6J',
+    fullName: 'Slc32a1^tm2(cre)Lowl',
+    reference: 'Vong et al., Neuron 71:142 (2011)',
+    jax: '028862 (also 016962 for Slc32a1-Cre)',
+    target: 'Cre+',
+    desc: 'IRES-Cre knock-in at vesicular GABA transporter. Captures essentially all GABAergic neurons.',
+    breeding: 'Het × homozygous floxed.',
+    onset: 'Embryonic, persists in adult.',
+    pitfalls: [
+      'Pan-GABAergic — broad and useful for circuit-level work, but rarely the right choice for cell-type-specific rescue.',
+      'Some peripheral expression in pancreas (β-cells co-express Vgat) — relevant for metabolic studies.'
+    ],
+    cohortNote: 'Pair with viral injection for regional specificity within GABAergic populations.',
+    keywords: ['cre', 'vgat', 'slc32a1', 'GABA', 'inhibitory', 'vong']
+  },
+  {
+    id: 'vglut2-cre', name: 'Vglut2-IRES-Cre (Slc17a6)',
+    category: 'cre', subcategory: 'Subcortical glutamatergic',
+    background: 'C57BL/6J',
+    fullName: 'Slc17a6^tm2(cre)Lowl',
+    reference: 'Vong et al., Neuron 71:142 (2011)',
+    jax: '016963',
+    target: 'Cre+',
+    desc: 'IRES-Cre at Slc17a6. Captures glutamatergic neurons outside cortex (thalamus, hypothalamus, brainstem, etc.). Cortex uses Vglut1.',
+    breeding: 'Het × homozygous floxed.',
+    onset: 'E13 onwards.',
+    pitfalls: [
+      'Reports of ectopic cortical recombination in some sublines — verify your local colony with a reporter.',
+      'Rare embryonic Vglut2 expression in cortical progenitors leaves a sparse cortical signal even though adult cortex is mostly Vglut1.',
+      'Pancreatic β-cells co-express Vglut2 — peripheral phenotypes possible.'
+    ],
+    cohortNote: 'Standard for subcortical glutamatergic circuit work.',
+    keywords: ['cre', 'vglut2', 'slc17a6', 'glutamate', 'excitatory', 'vong']
+  },
+  {
+    id: 'dat-cre', name: 'DAT-IRES-Cre (Slc6a3)',
+    category: 'cre', subcategory: 'Dopaminergic neurons',
+    background: 'C57BL/6J',
+    fullName: 'Slc6a3^tm1.1(cre)Bkmn',
+    reference: 'Bäckman et al., Genesis 44:383 (2006)',
+    jax: '006660',
+    target: 'Cre+',
+    desc: 'IRES-Cre at the dopamine transporter locus. Specific to mature dopaminergic neurons (VTA, SN, plus a few smaller groups).',
+    breeding: 'Het × homozygous floxed.',
+    onset: 'E15 onwards in DA neurons.',
+    pitfalls: [
+      'DAT-Cre is heterozygous null at DAT — homozygous DAT-Cre have hyperactivity (DAT KO phenotype). Always use Cre/+ × fl/fl.',
+      'Some adrenal medullary expression — relevant for stress phenotypes.',
+      'Cre activity in olfactory neurons and a subset of hypothalamic neurons is often overlooked.'
+    ],
+    cohortNote: 'Workhorse for DA system work; pair with Ai32 for optogenetic VTA experiments.',
+    keywords: ['cre', 'DAT', 'slc6a3', 'dopamine', 'VTA', 'SN', 'parkinson', 'backman']
+  },
+  {
+    id: 'chat-cre', name: 'ChAT-IRES-Cre',
+    category: 'cre', subcategory: 'Cholinergic neurons',
+    background: 'C57BL/6J',
+    fullName: 'Chat^tm2(cre)Lowl',
+    reference: 'Rossi et al., J Neurosci 31:4423 (2011)',
+    jax: '006410',
+    target: 'Cre+',
+    desc: 'IRES-Cre at ChAT. Targets cholinergic neurons — basal forebrain, brainstem, striatal CINs, motor neurons.',
+    breeding: 'Het × homozygous floxed.',
+    onset: 'Embryonic in motor neurons; postnatal in basal forebrain.',
+    pitfalls: [
+      'Some lines (BAC-Cre versions) have ectopic expression — IRES-Cre is the cleaner choice.',
+      'Skeletal muscle motor endplates also Cre+ — peripheral effects possible.',
+      'Hypoglossal and other brainstem ChAT+ cells included — region-specific virus needed for finer dissection.'
+    ],
+    cohortNote: 'Combine with viral injection (DREADD or ChR2) to restrict to a single ChAT+ region.',
+    keywords: ['cre', 'ChAT', 'cholinergic', 'acetylcholine', 'basal forebrain', 'rossi']
+  },
+
+  // ====== REPORTER LINES ======
+  {
+    id: 'ai14', name: 'Ai14 (Rosa26-LSL-tdTomato)',
+    category: 'reporter', subcategory: 'Cre-dependent fluorescent',
+    background: 'C57BL/6J',
+    fullName: 'Gt(ROSA)26Sor^tm14(CAG-tdTomato)Hze',
+    reference: 'Madisen et al., Nat Neurosci 13:133 (2010)',
+    jax: '007914',
+    target: 'Cre+; Ai14/+',
+    desc: 'Workhorse Cre reporter. CAG-driven tdTomato downstream of a loxP-Stop-loxP at Rosa26. Bright, photostable, well-tolerated.',
+    breeding: 'Maintained homozygous (viable). Cross to Cre line — 100% of offspring inherit one Ai14 allele.',
+    pitfalls: [
+      'Pick the right Ai-line — Ai9, Ai14, Ai32 differ in cassette design and brightness.',
+      'CAG promoter is broad — any Cre activity, including transient developmental Cre, leaves a permanent label.',
+      'Reporter signal records LIFETIME Cre activity, not current. A labelled astrocyte does not necessarily currently express your driver.'
+    ],
+    cohortNote: 'Default reporter for validating Cre patterns. Maintained homozygous so 50% target probability per pup.',
+    keywords: ['reporter', 'tdtomato', 'rosa26', 'ai14', 'madisen', 'allen']
+  },
+  {
+    id: 'ai32', name: 'Ai32 (ChR2-EYFP)',
+    category: 'reporter', subcategory: 'Cre-dependent optogenetic',
+    background: 'C57BL/6J',
+    fullName: 'Gt(ROSA)26Sor^tm32(CAG-COP4*H134R/EYFP)Hze',
+    reference: 'Madisen et al., Nat Neurosci 15:793 (2012)',
+    jax: '024109',
+    target: 'Cre+; Ai32/+',
+    desc: 'Cre-dependent ChR2(H134R)-EYFP at Rosa26. Standard for optogenetic activation in defined cell populations.',
+    breeding: 'Maintained homozygous. Cross to Cre line.',
+    pitfalls: [
+      'Membrane-targeted ChR2 expression at high levels can alter cell excitability even without light — pilot baseline electrophysiology.',
+      'EYFP signal alone (no Cre) is undetectable but can leak in some Cre-positive backgrounds — always image both genotypes.',
+      'Light-evoked currents vary 10× between cells; calibrate intensity for each cell type.'
+    ],
+    cohortNote: 'Validate light-evoked spiking in your target cells before behavioural experiments.',
+    keywords: ['reporter', 'ChR2', 'optogenetics', 'channelrhodopsin', 'ai32', 'madisen']
+  },
+  {
+    id: 'ai148', name: 'Ai148 (TIT2L-GC6f-ICL-tTA2)',
+    category: 'reporter', subcategory: 'Cre-dependent GCaMP6f',
+    background: 'C57BL/6J',
+    fullName: 'Igs7^tm148.1(tetO-GCaMP6f,CAG-tTA2)Hze',
+    reference: 'Daigle et al., Cell 174:465 (2018)',
+    jax: '030328',
+    target: 'Cre+; Ai148/+',
+    desc: 'TIGRE-2 GCaMP6f reporter at the Igs7 locus. Tet-modulated, Cre-gated. Good signal, dampened relative to Ai93/Ai94.',
+    breeding: 'Maintained homozygous. Cross to Cre line.',
+    pitfalls: [
+      'Earlier TIGRE lines (Ai93, Ai94) cause ABERRANT CORTICAL ACTIVITY — interictal-like discharges, particularly with broad Cre drivers (Steinmetz et al. 2017 eNeuro 4:ENEURO.0207-17). Ai148 was designed to mitigate but is not free of issues.',
+      'GCaMP signal can saturate at high expression — verify response amplitudes.',
+      'Doxycycline silences expression (tTA-based) — keep mice off dox-containing chow.'
+    ],
+    cohortNote: 'For widefield or 2P imaging; cross to Emx1-Cre or your driver of choice. Pilot-image before behavioural pairing.',
+    keywords: ['reporter', 'GCaMP', 'calcium', 'imaging', 'TIGRE', 'ai148', 'daigle']
+  },
+  {
+    id: 'mt-mg', name: 'mT/mG (R26-mTmG)',
+    category: 'reporter', subcategory: 'Cre-switch (membrane RFP→GFP)',
+    background: 'C57BL/6J',
+    fullName: 'Gt(ROSA)26Sor^tm4(ACTB-tdTomato,-EGFP)Luo',
+    reference: 'Muzumdar et al., Genesis 45:593 (2007)',
+    jax: '007576',
+    target: 'Cre+; mTmG/+',
+    desc: 'Dual-fluor: cells without Cre express membrane-tdTomato; Cre flips them to membrane-EGFP. Excellent for clonal analysis.',
+    breeding: 'Maintained homozygous. Cross to Cre.',
+    pitfalls: [
+      'Both fluors are membrane-targeted — different signal pattern from cytosolic reporters; harder for some image-analysis pipelines.',
+      'Some loss of mTomato signal in Cre-active cells can be incomplete — heterogeneous-looking populations.'
+    ],
+    cohortNote: 'Particularly useful when you want a baseline label on every cell and a switch in the recombined fraction.',
+    keywords: ['reporter', 'mTmG', 'membrane', 'GFP', 'tdtomato', 'muzumdar']
+  },
+
+  // ====== OTHER ======
+  {
+    id: 'r26-flp', name: 'Rosa26-FlpO',
+    category: 'other', subcategory: 'Flp recombinase deleter',
+    background: 'C57BL/6J',
+    fullName: 'Gt(ROSA)26Sor^tm1(FLP1)Dym',
+    reference: 'Farley et al., Genesis 28:106 (2000)',
+    jax: '009086',
+    target: 'FlpO+',
+    desc: 'Constitutive FlpO at Rosa26. Used to delete FRT-flanked sequences (e.g. neo cassettes from gene-trap alleles).',
+    breeding: 'Hemi × WT for transient deletion; remove FlpO once the FRT cassette is gone.',
+    pitfalls: [
+      'FlpO is much more efficient than original yeast Flp; if using older Flp lines, recombination may be incomplete.',
+      'Once you have used Flp to clean a cassette, breed Flp out — long-term Flp expression is uncharacterised in many tissues.'
+    ],
+    cohortNote: 'Tool line — used once to clean an allele, not for ongoing experiments.',
+    keywords: ['flp', 'frt', 'rosa26', 'recombinase', 'farley', 'deleter']
+  },
+  {
+    id: 'intersect', name: 'Intersectional dual reporter (RC::FrePe / RC::FLTG)',
+    category: 'other', subcategory: 'Cre AND Flp dependent',
+    background: 'C57BL/6J',
+    fullName: 'Various Allen / Dymecki alleles',
+    reference: 'Plummer et al., Nat Methods 12:867 (2015); Madisen et al. Nat Neurosci 2015',
+    jax: 'varies',
+    target: 'Cre+; Flp+; reporter/+',
+    desc: 'Reporters or effectors flanked by both loxP and FRT stops. Only cells with both Cre and Flp activity express the payload — used for cell-type AND projection or developmental-origin specificity.',
+    breeding: 'Cre+;Flp+ × reporter homo. Three-way cross gives ~25% triple-positive.',
+    pitfalls: [
+      'Three transgenes — colony management is real work. Plan ~25% target probability and cohort accordingly.',
+      'Each recombinase needs independent validation. Test Cre and Flp activity separately first with single-conditional reporters.',
+      'Flp efficiency at the dual-conditional locus is often lower than Cre — labelling can be sparse.'
+    ],
+    cohortNote: 'Ideal for dissecting subsets within a Cre+ population (e.g. PV+ cells projecting to thalamus).',
+    keywords: ['intersectional', 'flp', 'cre', 'dual conditional', 'INTRSECT', 'plummer', 'dymecki']
+  }
+];
+
+// ============================================================
+// PITFALLS DATA (combined cross-strain library)
+// ============================================================
+const pitfalls = [
+  {
+    title: 'Nestin-Cre paternal germline recombination',
+    severity: 'danger',
+    desc: 'When a male carries both Nestin-Cre and a floxed allele, Cre activity in spermatogonia produces sperm carrying the recombined null. Offspring genotyping looks "fl/+" but the floxed allele is actually a constitutive null. Always pass Cre through the dam, or genotype the recombined allele specifically.',
+    ref: 'Liang et al. 2012 PLoS One; Galichet et al. 2010 PLoS One'
+  },
+  {
+    title: 'Cre toxicity at high expression',
+    severity: 'warn',
+    desc: 'Cre alone, at high enough levels, can damage DNA via cryptic loxP-like sites in the genome. The classic example is αMHC-Cre cardiomyopathy. Always include Cre-only on +/+ background as a control — never assume "Cre alone" is silent.',
+    ref: 'Schmidt-Supprian & Rajewsky 2007 Nat Immunol; Pugach et al. 2015 Genesis'
+  },
+  {
+    title: 'B6SJL background → retinal degeneration',
+    severity: 'warn',
+    desc: '5xFAD, SOD1-G93A and several other transgenic models are/were maintained on B6SJL. SJL carries the Pde6b^rd1 mutation, causing rod degeneration by ~3 weeks. Any vision-dependent assay (Morris water maze, visual cliff, novel object location) is confounded. Use the congenic B6 line if available.',
+    ref: 'Pittler & Baehr 1991 PNAS; Garcia et al. 2003 Mol Vis'
+  },
+  {
+    title: 'C57BL/6J vs C57BL/6N — Nnt deletion',
+    severity: 'info',
+    desc: 'C57BL/6J (JAX) carries a multi-exon deletion in Nnt (nicotinamide nucleotide transhydrogenase). 6N substrains (Charles River, Taconic) do not. This affects mitochondrial NADPH metabolism, glucose tolerance, and several other phenotypes. Always state which sub-strain.',
+    ref: 'Toye et al. 2005 Diabetologia; Freeman et al. 2006 Diabetes'
+  },
+  {
+    title: 'C57BL/6N — rd8 (Crb1) and Cyfip2',
+    severity: 'info',
+    desc: 'Some C57BL/6N substrains carry the rd8 mutation in Crb1 — retinal spotting visible by OCT. Also a Cyfip2 variant affecting morphine sensitivity and behaviour. Verify the substrain (6NJ, 6NCrl, 6NTac, 6NHsd) and check for known polymorphisms.',
+    ref: 'Mattapallil et al. 2012 IOVS; Kumar et al. 2013 Science'
+  },
+  {
+    title: 'SOD1-G93A copy-number drift',
+    severity: 'danger',
+    desc: 'The high-copy SOD1-G93A transgene silently loses copies over generations, dramatically extending lifespan and confounding survival studies. Re-quantify by qPCR every 4-6 generations. Many "negative" ALS drug trials in this model failed pre-registration scrutiny because of unrecognised drift.',
+    ref: 'Alexander et al. 2004 J Neurosci; Scott et al. 2008 Amyotrophic Lateral Sclerosis'
+  },
+  {
+    title: 'R6/2 CAG-repeat instability',
+    severity: 'warn',
+    desc: 'CAG repeat in R6/2 expands or (rarely) contracts in colony breeding. Phenotype onset shifts proportionally. Order fresh from JAX or rederive by IVF every 1-2 years; verify CAG length by sequencing.',
+    ref: 'Mangiarini et al. 1997 Nat Genet; Cummings et al. 2012 Hum Mol Genet'
+  },
+  {
+    title: 'TIGRE-2 GCaMP aberrant activity (Ai93/Ai94)',
+    severity: 'danger',
+    desc: 'Crossing Ai93 or Ai94 to broad Cre drivers (Emx1, CaMKIIα) produces interictal-like discharges in the cortex. Ai148 mitigates but does not fully eliminate. If publishing imaging data, you must screen for the phenotype.',
+    ref: 'Steinmetz et al. 2017 eNeuro; Daigle et al. 2018 Cell'
+  },
+  {
+    title: 'Tamoxifen — biological activity beyond CreERT2',
+    severity: 'warn',
+    desc: 'Tamoxifen has its own ER signalling, GI toxicity, weight loss, and dose-dependent effects on uterus, bone, and immune cells. Always include vehicle (corn oil) controls. The active metabolite 4-OHT is more potent and cleaner for cultured cells.',
+    ref: 'Reinert et al. 2012 Endocrinology; Donocoff et al. 2020 Sci Rep'
+  },
+  {
+    title: 'Cx3cr1 haploinsufficiency in CreERT2 line',
+    severity: 'warn',
+    desc: 'The Cx3cr1-CreERT2 knock-in disrupts one Cx3cr1 allele. Cre-only animals have a microglial phenotype on their own (altered migration, response to injury). Always include Cre+/fl-WT controls, not just WT mice.',
+    ref: 'Yona et al. 2013 Immunity; Goldmann et al. 2013 Nat Neurosci'
+  },
+  {
+    title: 'Cx3cr1-CreERT2 — wait for the monocyte washout',
+    severity: 'warn',
+    desc: 'Both microglia and circulating monocytes express Cx3cr1. After tamoxifen, both pools are edited. Microglia are long-lived but monocytes turn over in days-weeks. Wait 4-6 weeks post-tamoxifen for "microglia-specific" experiments, otherwise infiltrating monocytes carry the edit too.',
+    ref: 'Goldmann et al. 2013 Nat Neurosci; Parkhurst et al. 2013 Cell'
+  },
+  {
+    title: 'GFAP-Cre (mGFAP 73.12) is not astrocyte-specific',
+    severity: 'warn',
+    desc: 'Recombines in radial glia / neural progenitors prenatally. Many "astrocyte-specific" deletions made with this line affect a substantial neuronal population too. Use Aldh1l1-CreERT2 with adult tamoxifen for true astrocyte specificity.',
+    ref: 'Garcia et al. 2004 Nat Neurosci; Srinivasan et al. 2016 Neuron'
+  },
+  {
+    title: '3xTg-AD phenotype drift across colonies',
+    severity: 'warn',
+    desc: 'On a mixed background and maintained as homozygotes, 3xTg-AD has drifted phenotypically across labs and generations. Always use littermate non-Tg controls from the same colony — never compare to mail-order WT B6.',
+    ref: 'Belfiore et al. 2019 Aging Cell; Stover et al. 2015 Behav Brain Res'
+  },
+  {
+    title: 'DAT-Cre is haploinsufficient at DAT',
+    severity: 'info',
+    desc: 'The Slc6a3-Cre knock-in disrupts one DAT allele. Cre/+ animals are heterozygous DAT-KO; homozygous DAT-Cre/Cre have hyperactivity. Always Cre/+ × fl/fl and use Cre/+ littermate controls.',
+    ref: 'Bäckman et al. 2006 Genesis'
+  },
+  {
+    title: 'Synapsin1-Cre paternal germline recombination',
+    severity: 'danger',
+    desc: 'Like Nestin-Cre, the Synapsin1-Cre transgene shows ectopic activity in male germline. Floxed alleles passed via Syn1-Cre+ males can be silently recombined in offspring. Verify by genotyping the recombined product specifically.',
+    ref: 'Rempe et al. 2006 Genesis'
+  },
+  {
+    title: 'Sox2-Cre — pan-embryonic recombination',
+    severity: 'info',
+    desc: 'Sox2-Cre is sometimes used as a "deleter" but recombines in the early epiblast — essentially everywhere. Use as an intentional germline-deleter, not as a tissue-specific driver.',
+    ref: 'Hayashi et al. 2002 Genesis'
+  },
+  {
+    title: 'CaMKIIα-Cre — sub-line variability',
+    severity: 'warn',
+    desc: 'Multiple CaMKIIα-Cre transgenic lines exist (T29-1, T50, Camk2a-Cre93, etc.) with different recombination patterns and onset. Cite the exact allele. Re-validate periodically as patterns drift.',
+    ref: 'Tsien et al. 1996 Cell; Casanova et al. 2001 Genesis'
+  },
+  {
+    title: 'Floxed alleles can be hypomorphic without Cre',
+    severity: 'warn',
+    desc: 'LoxP sites in introns can affect splicing or expression even without recombination. Always include fl/fl Cre-negative animals as controls — not just WT — to control for the floxed allele itself.',
+    ref: 'Smith 2011 Nat Methods (technical comment)'
+  },
+  {
+    title: 'Mendelian ratios under embryonic lethality',
+    severity: 'info',
+    desc: 'If KO/KO is lethal, het × het gives WT:het:KO = 1:2:0 among VIABLE pups (since 25% die). The remaining genotypes shift to ~33% WT, 67% het. Adjust your cohort calculator and check ratios at weaning vs E18.5.',
+    ref: 'Standard Mendelian / textbook'
+  },
+  {
+    title: 'Background strain × phenotype interaction',
+    severity: 'info',
+    desc: 'A KO that has a phenotype on B6 may have none on 129, and vice versa. The classic example is Nos1 in pyloric stenosis. Always state and control for background.',
+    ref: 'Doetschman 2009 Methods Mol Biol'
+  },
+  {
+    title: 'Litter / cage / dam effects',
+    severity: 'info',
+    desc: 'Mice in the same cage are not independent. Phenotype variance partitions into between-cage and within-cage components. Use mixed-effects models with cage as a random effect, or randomise across cages, particularly for behavioural studies.',
+    ref: 'Lazic 2010 BMC Neurosci; Festing 2014 ILAR J'
+  }
+];
+
+// ============================================================
+// BACKGROUND STRAIN NOTES
+// ============================================================
+const backgroundNotes = {
+  'C57BL/6J (JAX)': 'The default reference strain for most neuroscience. Carries Nnt deletion (mitochondrial complex I/NADPH effects), Snca polymorphism, and high alcohol preference. JAX-bred only; substrains like B6/JOlaHsd lack αsynuclein entirely.',
+  'C57BL/6N (Charles River, Taconic, NIH)': 'Very similar to 6J at the macro level but differs at >50 SNPs. Some substrains carry rd8 (Crb1) — retinal spots; verify with OCT. Slightly higher anxiety and lower morphine sensitivity than 6J in some studies.',
+  'BALB/cJ': 'Used for immune studies and some behaviour. High anxiety, reduced corpus callosum in some sublines. Albino — affects vision tasks.',
+  'FVB/NJ': 'Often the background for transgenic founders due to large pronuclei. Carries Pde6b^rd1 (blind from ~3 weeks) and Disc1 deletion. Almost always you want to backcross out.',
+  '129S6/SvEv': 'ES-cell origin for many older knockouts. 129 substrains differ widely; always check the specific substrain. Some 129s have agenesis of corpus callosum.'
+};
+
+// ============================================================
+// RENDER LOGIC
+// ============================================================
+function activateTab(name) {
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('section.tab').forEach(s => s.classList.toggle('active', s.id === 'tab-' + name));
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll('nav.tabs button').forEach(b => {
+  b.addEventListener('click', () => activateTab(b.dataset.tab));
+});
+
+// ----- MODELS TAB -----
+let activeModel = null;
+function renderModelGrid() {
+  const mount = document.getElementById('model-grid');
+  mount.innerHTML = Object.entries(modelTypes).map(([k, m]) => `
+    <div class="model-card ${k === activeModel ? 'active' : ''}" data-key="${k}">
+      <h3>${m.name}</h3>
+      <p>${m.short}</p>
+    </div>
+  `).join('');
+  mount.querySelectorAll('.model-card').forEach(c => {
+    c.addEventListener('click', () => {
+      activeModel = c.dataset.key;
+      renderModelGrid();
+      renderModelDetail();
+    });
+  });
+}
+function renderSchemeSVG(m) {
+  return `
+    <svg viewBox="0 0 680 240" width="100%" style="max-width: 680px; display: block; margin: 0 auto;">
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+      <g class="scheme-arrow" stroke="currentColor" style="color: var(--text-3);">
+        <rect class="scheme-box-parent" x="40" y="40" width="240" height="56" rx="8"/>
+        <rect class="scheme-box-parent" x="400" y="40" width="240" height="56" rx="8"/>
+        <path d="M 160 96 L 160 130 L 340 130" />
+        <path d="M 520 96 L 520 130 L 340 130" />
+        <line x1="340" y1="130" x2="340" y2="160" marker-end="url(#arr)"/>
+        <rect class="scheme-box-target" x="180" y="160" width="320" height="56" rx="8"/>
+      </g>
+      <text class="scheme-text-title" x="160" y="62" text-anchor="middle" dominant-baseline="central">${m.parent1.label}</text>
+      <text class="scheme-text-sub" x="160" y="80" text-anchor="middle" dominant-baseline="central">${m.parent1.genotype}</text>
+      <text class="scheme-text-title" x="340" y="72" text-anchor="middle" dominant-baseline="central" style="font-size: 18px;">×</text>
+      <text class="scheme-text-title" x="520" y="62" text-anchor="middle" dominant-baseline="central">${m.parent2.label}</text>
+      <text class="scheme-text-sub" x="520" y="80" text-anchor="middle" dominant-baseline="central">${m.parent2.genotype}</text>
+      <text class="scheme-text-title" x="340" y="182" text-anchor="middle" dominant-baseline="central">${m.target.genotype}</text>
+      <text class="scheme-text-sub" x="340" y="200" text-anchor="middle" dominant-baseline="central">${Math.round(m.target.prob * 100)}% of weanlings</text>
+    </svg>
+  `;
+}
+function renderPunnettHTML(p) {
+  if (!p) return '<p class="muted">Punnett gets too wide for this cross — see the offspring list under "Cross calculator" tab.</p>';
+  let html = '<table class="punnett-table"><thead><tr><th></th>';
+  p.cols.forEach(c => html += `<th>${c}</th>`);
+  html += '</tr></thead><tbody>';
+  p.rows.forEach((r, i) => {
+    html += `<tr><th>${r}</th>`;
+    p.cells[i].forEach(cell => {
+      html += `<td class="${cell.target ? 'target' : ''}">${cell.g}<div class="note">${cell.note}</div></td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  return html;
+}
+function renderModelDetail() {
+  const mount = document.getElementById('model-detail');
+  if (!activeModel) { mount.innerHTML = '<p class="muted" style="margin-top: 1.5rem;">Click a model type above to see its breeding scheme, Punnett square, and pitfalls.</p>'; return; }
+  const m = modelTypes[activeModel];
+  mount.innerHTML = `
+    <div class="detail-panel">
+      <h2>${m.name}</h2>
+      <div class="subtitle">${m.short}</div>
+      <p>${m.desc}</p>
+      <p class="muted">${m.mechanism}</p>
+
+      <div class="grid-3" style="margin: 1rem 0;">
+        <div class="metric"><div class="metric-label">Target genotype</div><div class="metric-value small">${m.target.genotype}</div></div>
+        <div class="metric"><div class="metric-label">Per-pup probability</div><div class="metric-value">${Math.round(m.target.prob * 100)}%</div></div>
+        <div class="metric"><div class="metric-label">Cross to data</div><div class="metric-value small">~${m.weeks} wk (${m.generations} gen)</div></div>
+      </div>
+
+      <h3>Experimental cross</h3>
+      ${renderSchemeSVG(m)}
+
+      <h3 style="margin-top: 1.25rem;">Punnett square</h3>
+      ${renderPunnettHTML(m.punnett)}
+
+      <div class="callout warn">
+        <h4>Pitfalls</h4>
+        <ul>${m.pitfalls.map(p => `<li>${p}</li>`).join('')}</ul>
+      </div>
+
+      <div class="callout accent">
+        <h4>Required controls</h4>
+        <p style="margin: 0;">${m.controls}</p>
+      </div>
+    </div>
+  `;
+}
+
+// ----- LIBRARY TAB -----
+function renderLibrary() {
+  const search = document.getElementById('library-search').value.toLowerCase().trim();
+  const filter = document.getElementById('library-filter').value;
+  const filtered = strains.filter(s => {
+    if (filter !== 'all' && s.category !== filter) return false;
+    if (!search) return true;
+    const hay = [s.name, s.subcategory, s.desc, s.background, ...(s.keywords || [])].join(' ').toLowerCase();
+    return hay.includes(search);
+  });
+  const mount = document.getElementById('library-grid');
+  if (filtered.length === 0) {
+    mount.innerHTML = '<p class="muted">No matches. Try a broader search.</p>';
+    return;
+  }
+  mount.innerHTML = filtered.map(s => `
+    <div class="strain-card" data-id="${s.id}">
+      <h3>${s.name}</h3>
+      <div class="strain-meta">
+        <span class="tag ${categoryTag(s.category)}">${categoryLabel(s.category)}</span>
+        <span class="tag">${s.subcategory}</span>
+      </div>
+      <p class="strain-desc">${s.desc}</p>
+    </div>
+  `).join('');
+  mount.querySelectorAll('.strain-card').forEach(c => {
+    c.addEventListener('click', () => renderStrainDetail(c.dataset.id));
+  });
+}
+function categoryTag(c) { return { disease: 'warn', cre: 'purple', reporter: 'accent', other: 'info' }[c] || ''; }
+function categoryLabel(c) { return { disease: 'Disease model', cre: 'Cre / CreERT2', reporter: 'Reporter', other: 'Other' }[c] || c; }
+function renderStrainDetail(id) {
+  const s = strains.find(x => x.id === id);
+  if (!s) return;
+  const mount = document.getElementById('library-detail');
+  mount.innerHTML = `
+    <div class="detail-panel">
+      <div class="card-header" style="margin-bottom: 0.25rem;">
+        <h2 style="margin: 0;">${s.name}</h2>
+        <button class="action" onclick="document.getElementById('library-detail').innerHTML=''; window.scrollTo({top: document.getElementById('tab-library').offsetTop - 60, behavior: 'smooth'});">Close</button>
+      </div>
+      <div class="subtitle">${s.subcategory}</div>
+      <p>${s.desc}</p>
+      <dl class="kv-list">
+        <dt>Background</dt><dd><code>${s.background}</code></dd>
+        <dt>Full name</dt><dd><code>${s.fullName}</code></dd>
+        <dt>JAX stock</dt><dd>${s.jax}</dd>
+        <dt>Reference</dt><dd>${s.reference}</dd>
+        <dt>Target genotype</dt><dd><code>${s.target}</code></dd>
+        ${s.breeding ? `<dt>Breeding scheme</dt><dd>${s.breeding}</dd>` : ''}
+        ${s.onset ? `<dt>Onset / window</dt><dd>${s.onset}</dd>` : ''}
+      </dl>
+      <div class="callout warn">
+        <h4>Pitfalls and controls</h4>
+        <ul>${s.pitfalls.map(p => `<li>${p}</li>`).join('')}</ul>
+      </div>
+      ${s.cohortNote ? `<div class="callout accent"><h4>Cohort and breeding tip</h4><p style="margin: 0;">${s.cohortNote}</p></div>` : ''}
+    </div>
+  `;
+  window.scrollTo({ top: mount.offsetTop - 60, behavior: 'smooth' });
+}
+
+document.getElementById('library-search').addEventListener('input', renderLibrary);
+document.getElementById('library-filter').addEventListener('change', renderLibrary);
+
+// ----- CALCULATOR TAB -----
+function buildLocusInputs() {
+  const n = parseInt(document.getElementById('calc-nloci').value);
+  const inter = document.getElementById('calc-intersectional').checked;
+  const mount = document.getElementById('calc-loci-config');
+  let html = '';
+  for (let i = 0; i < n; i++) {
+    const presetLabel = inter ? (i === 0 ? 'Cre' : i === 1 ? 'Flp' : `Reporter`) : `Locus ${i + 1}`;
+    html += `
+      <div class="card compact" style="margin-bottom: 0.5rem;">
+        <h4>${presetLabel}</h4>
+        <label class="field">
+          <span>Sire genotype at this locus</span>
+          <select class="calc-locus-sire" data-idx="${i}">
+            <option value="hom">homozygous (A/A)</option>
+            <option value="het" selected>heterozygous (A/+)</option>
+            <option value="wt">wild-type (+/+)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Dam genotype at this locus</span>
+          <select class="calc-locus-dam" data-idx="${i}">
+            <option value="hom">homozygous (A/A)</option>
+            <option value="het">heterozygous (A/+)</option>
+            <option value="wt" selected>wild-type (+/+)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Target needs at least</span>
+          <select class="calc-locus-target" data-idx="${i}">
+            <option value="hom">homozygous (A/A)</option>
+            <option value="any" selected>any A allele (A/A or A/+)</option>
+            <option value="wt">wild-type only (+/+)</option>
+          </select>
+        </label>
+      </div>
+    `;
+  }
+  mount.innerHTML = html;
+  mount.querySelectorAll('select').forEach(s => s.addEventListener('change', updateCalc));
+}
+
+function gameteFreqs(geno) {
+  // returns { 'A': frac, '+': frac }
+  if (geno === 'hom') return { A: 1, '+': 0 };
+  if (geno === 'het') return { A: 0.5, '+': 0.5 };
+  return { A: 0, '+': 1 };
+}
+function offspringDist(sireG, damG) {
+  const s = gameteFreqs(sireG);
+  const d = gameteFreqs(damG);
+  return {
+    'A/A': s.A * d.A,
+    'A/+': s.A * d['+'] + s['+'] * d.A,
+    '+/+': s['+'] * d['+']
+  };
+}
+function targetMatch(targetReq, geno) {
+  if (targetReq === 'hom') return geno === 'A/A';
+  if (targetReq === 'any') return geno === 'A/A' || geno === 'A/+';
+  return geno === '+/+';
+}
+
+function updateCalc() {
+  const n = parseInt(document.getElementById('calc-nloci').value);
+  const lethal = document.getElementById('calc-lethal').checked;
+  const inter = document.getElementById('calc-intersectional').checked;
+  const singleSex = document.getElementById('calc-singlesex').checked;
+
+  const sires = [...document.querySelectorAll('.calc-locus-sire')].map(s => s.value);
+  const dams = [...document.querySelectorAll('.calc-locus-dam')].map(s => s.value);
+  const targets = [...document.querySelectorAll('.calc-locus-target')].map(s => s.value);
+
+  // Per-locus distributions
+  const locusDists = sires.map((s, i) => offspringDist(s, dams[i]));
+
+  // Build joint distribution
+  const genos = ['A/A', 'A/+', '+/+'];
+  const combos = [];
+  function recurse(idx, sofar, prob) {
+    if (idx === n) {
+      combos.push({ genos: [...sofar], prob });
+      return;
+    }
+    for (const g of genos) {
+      const p = locusDists[idx][g];
+      if (p > 0) recurse(idx + 1, [...sofar, g], prob * p);
+    }
+  }
+  recurse(0, [], 1);
+
+  // Embryonic lethal: at any locus where target is "hom" with parents that can give A/A and we said lethal,
+  // remove A/A from viable. Simple version: if checked, drop ALL A/A genotypes from any locus and renormalise.
+  let viable = combos;
+  if (lethal) {
+    viable = combos.filter(c => !c.genos.includes('A/A'));
+    const total = viable.reduce((s, c) => s + c.prob, 0);
+    viable = viable.map(c => ({ ...c, prob: c.prob / total }));
+  }
+
+  // Filter target combos
+  let targetProb = 0;
+  const rows = viable.map(c => {
+    let isTarget;
+    if (inter && n >= 2) {
+      // intersectional: need locus 0 (Cre) to have A allele AND locus 1 (Flp) to have A allele AND locus 2 (reporter) target
+      isTarget = (c.genos[0] !== '+/+') && (c.genos[1] !== '+/+');
+      if (n === 3) isTarget = isTarget && targetMatch(targets[2], c.genos[2]);
+    } else {
+      isTarget = c.genos.every((g, i) => targetMatch(targets[i], g));
+    }
+    if (isTarget) targetProb += c.prob;
+    return { ...c, isTarget };
+  });
+
+  if (singleSex) targetProb = targetProb / 2;
+
+  // Render distribution table
+  rows.sort((a, b) => b.prob - a.prob);
+  let html = '<table class="punnett-table"><thead><tr>';
+  for (let i = 0; i < n; i++) html += `<th>Locus ${i + 1}</th>`;
+  html += '<th>Frequency</th><th>Use</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    html += '<tr>';
+    r.genos.forEach(g => html += `<td>${g}</td>`);
+    html += `<td><strong>${(r.prob * 100).toFixed(1)}%</strong></td>`;
+    html += `<td class="${r.isTarget ? 'target' : ''}" style="font-size: 12px;">${r.isTarget ? 'TARGET' : 'control / non-target'}</td>`;
+    html += '</tr>';
+  });
+  if (lethal) {
+    html += `<tr><td colspan="${n}" class="lethal">A/A combinations</td><td colspan="2" class="lethal">embryonic lethal — removed</td></tr>`;
+  }
+  html += '</tbody></table>';
+  if (singleSex) html += `<p class="tiny">Single-sex requirement: target probability halved (${(targetProb * 200).toFixed(1)}% → ${(targetProb * 100).toFixed(1)}%).</p>`;
+
+  document.getElementById('calc-distribution').innerHTML = html;
+
+  // Cohort math
+  const N = parseInt(document.getElementById('calc-n').value);
+  document.getElementById('calc-n-out').textContent = N;
+  const p = targetProb;
+  const expected = p > 0 ? Math.ceil(N / p) : Infinity;
+  const buffer = p > 0 ? Math.ceil(N / p + 1.645 * Math.sqrt(N * (1 - p)) / p) : Infinity;
+  const litterSize = 7;
+  const litters = isFinite(buffer) ? Math.ceil(buffer / litterSize) : Infinity;
+  const pairs = isFinite(litters) ? Math.max(1, Math.ceil(litters / 3)) : Infinity;
+
+  document.getElementById('calc-p').textContent = (p * 100).toFixed(1) + '%';
+  document.getElementById('calc-expected').textContent = isFinite(expected) ? expected + ' pups' : 'N/A';
+  document.getElementById('calc-buffer').textContent = isFinite(buffer) ? buffer + ' pups' : 'N/A';
+  document.getElementById('calc-litters').textContent = isFinite(litters) ? litters : 'N/A';
+  document.getElementById('calc-pairs').textContent = isFinite(pairs) ? pairs + ' pair' + (pairs === 1 ? '' : 's') : 'N/A';
+  // Time: assume 8 weeks per round of breeding (gestation 3 wk + weaning 3 wk + setup 2 wk), plus rounds based on pairs/litters
+  const weeks = isFinite(pairs) ? 8 + Math.ceil(litters / Math.max(pairs, 1)) * 8 : Infinity;
+  document.getElementById('calc-time').textContent = isFinite(weeks) ? `~${weeks} wk` : 'N/A';
+}
+
+document.getElementById('calc-nloci').addEventListener('change', () => { buildLocusInputs(); updateCalc(); });
+document.getElementById('calc-lethal').addEventListener('change', updateCalc);
+document.getElementById('calc-intersectional').addEventListener('change', () => { buildLocusInputs(); updateCalc(); });
+document.getElementById('calc-singlesex').addEventListener('change', updateCalc);
+document.getElementById('calc-n').addEventListener('input', updateCalc);
+
+// ----- BACKCROSS TAB -----
+function renderBackcross() {
+  const speed = document.getElementById('bc-speed').checked;
+  const donor = document.getElementById('bc-donor').value;
+  const recipient = document.getElementById('bc-recipient').value;
+  const rows = [];
+  for (let n = 1; n <= 10; n++) {
+    let pct;
+    if (!speed) {
+      pct = 50 + (1 - Math.pow(0.5, n)) * 50;
+    } else {
+      // speed congenic: faster — approximate via SNP-assisted selection, ~1.5x faster
+      pct = 50 + (1 - Math.pow(0.5, n * 1.6)) * 50;
+      if (pct > 99.95) pct = 99.95;
+    }
+    const donorPct = 100 - pct;
+    rows.push({ n, recipientPct: pct, donorPct, time: n * 14 }); // ~14 weeks per generation (mating to mating)
+  }
+  let html = '<thead><tr><th>Generation</th><th>Recipient %</th><th>Donor %</th><th></th><th>Cumulative time</th></tr></thead><tbody>';
+  rows.forEach(r => {
+    html += `<tr>
+      <td>N${r.n + 1}</td>
+      <td><strong>${r.recipientPct.toFixed(2)}%</strong></td>
+      <td>${r.donorPct.toFixed(2)}%</td>
+      <td><div class="bar"><div class="bar-fill" style="width: ${r.recipientPct}%"></div></div></td>
+      <td>${(r.time / 4).toFixed(1)} mo</td>
+    </tr>`;
+  });
+  html += '</tbody>';
+  document.getElementById('bc-table').innerHTML = html;
+
+  // Background notes
+  const notes = backgroundNotes[recipient] || 'No specific notes.';
+  const donorNote = backgroundNotes[donor] || (donor === 'Mixed / unknown' ? 'Mixed background — first thing to do is genotype a SNP panel to know your starting point.' : '');
+  document.getElementById('bc-notes').innerHTML = `
+    <h4>Donor: ${donor}</h4>
+    <p>${donorNote}</p>
+    <h4>Recipient: ${recipient}</h4>
+    <p>${notes}</p>
+    <p class="muted" style="margin-top: 1rem;">Standard convention: mice are "congenic" by N10 (>99.9% recipient). Many journals accept N6 (~98.4%) for non-genetic-background-sensitive phenotypes. Speed congenic with a 1500-SNP panel reaches N10-equivalent by ~N5-N6.</p>
+  `;
+}
+document.getElementById('bc-donor').addEventListener('change', renderBackcross);
+document.getElementById('bc-recipient').addEventListener('change', renderBackcross);
+document.getElementById('bc-speed').addEventListener('change', renderBackcross);
+
+// ----- PITFALLS TAB -----
+function renderPitfalls() {
+  const search = document.getElementById('pitfalls-search').value.toLowerCase().trim();
+  const filtered = pitfalls.filter(p => {
+    if (!search) return true;
+    return (p.title + ' ' + p.desc + ' ' + (p.ref || '')).toLowerCase().includes(search);
+  });
+  document.getElementById('pitfalls-grid').innerHTML = filtered.map(p => `
+    <div class="pitfall-item ${p.severity}">
+      <h4>${p.title}</h4>
+      <p>${p.desc}</p>
+      <div class="ref">${p.ref}</div>
+    </div>
+  `).join('');
+}
+document.getElementById('pitfalls-search').addEventListener('input', renderPitfalls);
+
+// ----- INIT -----
+renderModelGrid();
+renderModelDetail();
+renderLibrary();
+buildLocusInputs();
+updateCalc();
+renderBackcross();
+renderPitfalls();
+</script>
+
+</body>
+</html>
