@@ -1,0 +1,2260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Neurobio Stats Decision Tree — Frequentist vs Bayesian</title>
+<style>
+  :root {
+    --bg: #f7f5f0;
+    --panel: #ffffff;
+    --ink: #1a1a1a;
+    --ink-soft: #5a5a5a;
+    --line: #e3ddd0;
+    --accent: #2b4a7a;       /* frequentist blue */
+    --accent-soft: #e8eef7;
+    --bayes: #6b3aa8;        /* bayesian purple */
+    --bayes-soft: #f0e8fa;
+    --warn: #b8540a;         /* amber for caveats */
+    --warn-soft: #fbeed7;
+    --danger: #a8302a;       /* red for pitfalls */
+    --danger-soft: #fadddc;
+    --ok: #2f6b3d;
+    --ok-soft: #dcefe1;
+    --shadow: 0 2px 12px rgba(20, 20, 30, 0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    line-height: 1.5;
+  }
+  body { min-height: 100vh; padding: 24px 16px 80px; }
+
+  .wrap {
+    max-width: 1100px; margin: 0 auto;
+    display: grid; grid-template-columns: 1fr 320px; gap: 24px;
+  }
+  @media (max-width: 880px) {
+    .wrap { grid-template-columns: 1fr; }
+  }
+
+  header.top {
+    grid-column: 1 / -1;
+    display: flex; justify-content: space-between; align-items: flex-end;
+    margin-bottom: 8px; gap: 16px; flex-wrap: wrap;
+  }
+  header.top h1 {
+    margin: 0; font-size: 24px; font-weight: 600; letter-spacing: -0.01em;
+  }
+  header.top p {
+    margin: 4px 0 0; color: var(--ink-soft); font-size: 13.5px; max-width: 640px;
+  }
+  .btn {
+    border: 1px solid var(--line); background: var(--panel);
+    padding: 7px 14px; border-radius: 8px; font-size: 13px;
+    color: var(--ink); cursor: pointer; font-weight: 500;
+    transition: all 0.15s ease;
+  }
+  .btn:hover { background: #f0ebde; border-color: #c9c0a8; }
+
+  /* Breadcrumb */
+  .breadcrumb {
+    grid-column: 1 / -1;
+    display: flex; flex-wrap: wrap; gap: 6px 4px; align-items: center;
+    background: var(--panel); padding: 10px 14px; border-radius: 10px;
+    border: 1px solid var(--line); font-size: 12.5px; min-height: 44px;
+  }
+  .crumb {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #f4eee0; padding: 4px 9px; border-radius: 6px;
+    color: var(--ink); cursor: pointer; border: 1px solid transparent;
+  }
+  .crumb:hover { border-color: #d0c5a6; }
+  .crumb .k { color: var(--ink-soft); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .crumb .v { font-weight: 500; }
+  .crumb-sep { color: var(--ink-soft); font-size: 11px; }
+  .crumb-empty { color: var(--ink-soft); font-style: italic; }
+
+  /* Main panel */
+  main.panel {
+    background: var(--panel); border-radius: 12px; border: 1px solid var(--line);
+    padding: 24px 28px; box-shadow: var(--shadow);
+  }
+
+  .step-label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-soft); margin-bottom: 6px;
+  }
+  .q-title {
+    font-size: 20px; font-weight: 600; margin: 0 0 8px; letter-spacing: -0.01em;
+  }
+  .q-hint {
+    color: var(--ink-soft); font-size: 13.5px; margin-bottom: 18px;
+    border-left: 3px solid var(--line); padding-left: 12px;
+  }
+
+  .options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  @media (max-width: 640px) { .options { grid-template-columns: 1fr; } }
+
+  .opt {
+    background: #fbf9f3; border: 1px solid var(--line); border-radius: 9px;
+    padding: 12px 14px; cursor: pointer; text-align: left;
+    transition: all 0.15s ease; font: inherit; color: inherit;
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .opt:hover {
+    border-color: var(--accent); background: var(--accent-soft);
+    transform: translateY(-1px);
+  }
+  .opt .label { font-weight: 600; font-size: 14.5px; }
+  .opt .desc { font-size: 12.5px; color: var(--ink-soft); }
+
+  /* Inline warning at step level */
+  .step-warn {
+    margin-top: 14px; padding: 10px 12px; border-radius: 8px;
+    background: var(--warn-soft); border-left: 3px solid var(--warn);
+    font-size: 12.5px; color: #5a3408;
+  }
+  .step-warn b { color: var(--warn); }
+
+  /* Side panel */
+  aside.sidebar {
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; font-size: 13px;
+  }
+  .card h3 {
+    margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--ink-soft); font-weight: 600;
+  }
+  .warning-list { display: flex; flex-direction: column; gap: 8px; }
+  .warning-item {
+    background: var(--warn-soft); border-left: 3px solid var(--warn);
+    padding: 8px 10px; border-radius: 4px; font-size: 12.5px;
+    color: #5a3408;
+  }
+  .warning-item.danger {
+    background: var(--danger-soft); border-left-color: var(--danger);
+    color: #6a1f1c;
+  }
+  .warning-empty { color: var(--ink-soft); font-style: italic; font-size: 12.5px; }
+
+  /* Result view */
+  .result-header {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--ink-soft); margin-bottom: 4px;
+  }
+  .result-title {
+    font-size: 22px; font-weight: 600; margin: 0 0 16px;
+    letter-spacing: -0.01em;
+  }
+  .tracks {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+    margin-bottom: 16px;
+  }
+  @media (max-width: 700px) { .tracks { grid-template-columns: 1fr; } }
+  .track {
+    border-radius: 10px; padding: 14px 16px; border: 1px solid;
+  }
+  .track.freq { background: var(--accent-soft); border-color: #c9d4e8; }
+  .track.bayes { background: var(--bayes-soft); border-color: #d9c8eb; }
+  .track h4 {
+    margin: 0 0 8px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .track.freq h4 { color: var(--accent); }
+  .track.bayes h4 { color: var(--bayes); }
+  .track .test-name {
+    font-size: 16px; font-weight: 600; margin-bottom: 6px;
+  }
+  .track .test-desc { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+  .track .code {
+    background: rgba(0,0,0,0.04); padding: 8px 10px;
+    border-radius: 6px; font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 11.5px; white-space: pre-wrap; word-break: break-word;
+    border: 1px solid rgba(0,0,0,0.06);
+  }
+  .track .why {
+    margin-top: 10px; font-size: 12.5px; color: var(--ink-soft);
+    border-top: 1px dashed rgba(0,0,0,0.12); padding-top: 8px;
+  }
+
+  .pitfalls {
+    background: var(--danger-soft); border-left: 4px solid var(--danger);
+    padding: 12px 14px; border-radius: 6px; margin-bottom: 14px;
+  }
+  .pitfalls h4 {
+    margin: 0 0 6px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--danger);
+  }
+  .pitfalls ul { margin: 0; padding-left: 18px; font-size: 13px; color: #6a1f1c; }
+  .pitfalls li { margin-bottom: 4px; }
+
+  .neuro-notes {
+    background: #f4eee0; border-radius: 6px; padding: 12px 14px;
+    font-size: 13px; color: #4a4030; margin-bottom: 14px;
+  }
+  .neuro-notes h4 {
+    margin: 0 0 6px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: #6b5818;
+  }
+
+  .footer-bar {
+    display: flex; justify-content: space-between; margin-top: 20px;
+    padding-top: 16px; border-top: 1px solid var(--line);
+  }
+
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px;
+    color: var(--ink-soft);
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
+  details.helper {
+    margin-top: 14px; font-size: 12.5px; color: var(--ink-soft);
+    border-top: 1px dashed var(--line); padding-top: 10px;
+  }
+  details.helper summary { cursor: pointer; font-weight: 500; }
+  details.helper > div { margin-top: 8px; }
+
+  .progress {
+    margin-top: 4px; height: 3px; background: var(--line); border-radius: 2px;
+    overflow: hidden; margin-bottom: 18px;
+  }
+  .progress-bar {
+    height: 100%; background: var(--accent); transition: width 0.25s ease;
+  }
+
+  /* Glossary cross-link */
+  .gloss {
+    border-bottom: 1px dotted #999;
+    cursor: help;
+    color: inherit;
+  }
+  .gloss:hover { background: #fff3a8; }
+  #gloss-pop {
+    position: absolute; z-index: 1000;
+    background: #1a1a1a; color: #f7f5f0;
+    padding: 10px 12px; border-radius: 8px;
+    font-size: 12.5px; line-height: 1.45;
+    max-width: 320px; box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    display: none;
+  }
+  #gloss-pop .term { font-weight: 600; color: #ffe28a; font-size: 13px; margin-bottom: 4px; }
+  #gloss-pop a { color: #9cd1ff; }
+
+  /* Boomer Warning */
+  .boomer {
+    background: repeating-linear-gradient(
+      45deg, #3a2a14, #3a2a14 10px, #4a3520 10px, #4a3520 20px);
+    color: #ffe9b8;
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;
+    border: 2px solid #6a4a20;
+    position: relative;
+  }
+  .boomer .tag {
+    display: inline-block; background: #ffd166; color: #2a1a06;
+    padding: 2px 9px; border-radius: 4px; font-size: 10.5px;
+    text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .boomer h4 {
+    margin: 0 0 6px; font-size: 13px; font-weight: 600; color: #ffd166;
+  }
+  .boomer ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  .boomer li { margin-bottom: 5px; line-height: 1.5; }
+  .boomer .gloss { color: #ffe9b8; border-bottom-color: #8a7040; }
+
+  /* Power calculator */
+  .powcalc {
+    background: #eef5ee; border: 1px solid #c8dccb;
+    border-radius: 8px; padding: 14px 16px; margin-bottom: 14px;
+  }
+  .powcalc h4 {
+    margin: 0 0 6px; font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--ok);
+  }
+  .powcalc .pc-test { font-size: 13px; color: var(--ink-soft); margin-bottom: 12px; }
+  .powcalc-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 10px; margin-bottom: 12px;
+  }
+  .powcalc-field {
+    display: flex; flex-direction: column; gap: 4px;
+  }
+  .powcalc-field label {
+    font-size: 11px; color: var(--ink-soft);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .powcalc-field input, .powcalc-field select {
+    padding: 5px 8px; border: 1px solid #c8dccb; border-radius: 5px;
+    font: inherit; font-size: 13px; background: #fff;
+  }
+  .powcalc-mode {
+    display: flex; gap: 6px; margin-bottom: 10px;
+  }
+  .powcalc-mode button {
+    flex: 1; padding: 5px 8px; border-radius: 5px;
+    border: 1px solid #c8dccb; background: #fff;
+    font-size: 12px; cursor: pointer; color: var(--ink);
+  }
+  .powcalc-mode button.active {
+    background: var(--ok); color: #fff; border-color: var(--ok);
+  }
+  .powcalc-result {
+    background: #fff; border-radius: 6px; padding: 10px 12px;
+    border: 1px dashed #c8dccb;
+    font-size: 13px;
+  }
+  .powcalc-result .big {
+    font-size: 22px; font-weight: 600; color: var(--ok);
+    letter-spacing: -0.01em;
+  }
+  .powcalc-result .small { font-size: 11.5px; color: var(--ink-soft); margin-top: 4px; }
+  .powcalc-note {
+    font-size: 11.5px; color: var(--ink-soft); margin-top: 8px; font-style: italic;
+  }
+
+  /* Glossary modal */
+  #gloss-modal {
+    position: fixed; inset: 0; background: rgba(20,20,30,0.4);
+    z-index: 900; display: none; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  #gloss-modal.open { display: flex; }
+  .gloss-modal-inner {
+    background: var(--panel); border-radius: 12px;
+    max-width: 720px; width: 100%; max-height: 80vh;
+    overflow-y: auto; padding: 24px 28px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  }
+  .gloss-modal-inner h2 {
+    margin: 0 0 16px; font-size: 20px; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .gloss-modal-inner h2 button { font-size: 16px; }
+  .gloss-search {
+    width: 100%; padding: 8px 12px; border: 1px solid var(--line);
+    border-radius: 8px; font: inherit; font-size: 14px; margin-bottom: 16px;
+  }
+  .gloss-entry {
+    border-top: 1px solid var(--line); padding: 10px 0;
+    font-size: 13.5px; line-height: 1.5;
+  }
+  .gloss-entry .term {
+    font-weight: 600; color: var(--accent); margin-right: 6px;
+  }
+  .gloss-entry .aliases {
+    font-size: 11.5px; color: var(--ink-soft);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Stats decision tree — neurobiology edition</h1>
+      <p>Walk through your scientific question and data structure to land on a recommended frequentist test paired with a Bayesian recipe. Caveats are flagged at every step for the kinds of variance and design issues common in mouse-to-human neurobehavioral work.</p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn" id="gloss-btn">Glossary</button>
+      <button class="btn" id="reset-btn">Start over</button>
+    </div>
+  </header>
+
+  <nav class="breadcrumb" id="breadcrumb">
+    <span class="crumb-empty">No selections yet — start with your scientific question below.</span>
+  </nav>
+
+  <main class="panel" id="main"></main>
+
+  <aside class="sidebar">
+    <div class="card">
+      <h3>Caveats accumulated so far</h3>
+      <div id="warnings" class="warning-list">
+        <span class="warning-empty">Warnings will appear here as you make choices.</span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Legend</h3>
+      <div class="legend">
+        <span><span class="dot" style="background:var(--accent)"></span>Frequentist</span>
+        <span><span class="dot" style="background:var(--bayes)"></span>Bayesian</span>
+        <span><span class="dot" style="background:var(--warn)"></span>Caveat</span>
+        <span><span class="dot" style="background:var(--danger)"></span>Pitfall</span>
+      </div>
+    </div>
+    <div class="card" style="font-size:12px; color:var(--ink-soft); line-height:1.5;">
+      <h3>Rule of thumb</h3>
+      <p style="margin:0 0 8px;">In small-N mouse studies (n=5–10/group), Bayesian methods with weakly informative priors typically give you more honest uncertainty than t-tests. Frequentist tests assume the data tell the whole story; Bayes lets you carry forward what's already known about effect sizes.</p>
+      <p style="margin:0;">Whatever you pick, plot the raw data first.</p>
+    </div>
+  </aside>
+
+</div>
+
+<div id="gloss-pop" role="tooltip"></div>
+
+<div id="gloss-modal" role="dialog" aria-modal="true">
+  <div class="gloss-modal-inner">
+    <h2>
+      Glossary
+      <button class="btn" id="gloss-close">Close</button>
+    </h2>
+    <input class="gloss-search" id="gloss-search" placeholder="Search terms…" />
+    <div id="gloss-list"></div>
+  </div>
+</div>
+
+<script>
+/* ---------- Tree data ---------- */
+
+const TREE = {
+  start: {
+    type: "question",
+    label: "Scientific question",
+    title: "What scientific question are you asking?",
+    hint: "This is the single most important thing to nail down before touching any statistical machinery. The same dataset can support very different analyses depending on the question.",
+    options: [
+      { label: "Compare groups", desc: "Is condition A different from B? (drug vs vehicle, WT vs KO, lesion vs sham; % stained area between groups; open-field time-in-center across cohorts)", value: "compare", next: "compare_datatype" },
+      { label: "Look at a relationship", desc: "Does X predict / correlate with Y? (cFos⁺ cell count vs behavior score, running-wheel distance vs body weight, dose vs lever presses)", value: "relationship", next: "rel_type" },
+      { label: "Track change over time", desc: "Running-wheel learning across days, fixed-ratio lever-press acquisition, drug onset, recovery from lesion.", value: "longitudinal", next: "long_shape" },
+      { label: "Counts or events", desc: "Cell counts per region per animal (IHC), spike counts, # lever presses, # rears in open field, # freezing bouts.", value: "counts", next: "count_dispersion" },
+      { label: "Time-to-event", desc: "Latency to first lever press, escape latency, time-to-criterion in operant tasks, survival.", value: "survival", next: "surv_censor" },
+      { label: "Just describe the data", desc: "Summarise, visualise, no inference yet — always do this step before any test.", value: "describe", next: "describe_leaf" }
+    ]
+  },
+
+  /* ====================== COMPARE GROUPS ====================== */
+  compare_datatype: {
+    type: "question",
+    label: "Data type",
+    title: "What kind of outcome variable do you have?",
+    hint: "The measurement scale drives everything. Continuous-looking variables (like time in zone) can still be skewed or bounded enough to break parametric assumptions.",
+    options: [
+      { label: "Continuous, unbounded", desc: "Body weight, mean firing rate, dF/F, running-wheel distance per day, cell density (cells/mm²).", value: "continuous", next: "compare_design" },
+      { label: "Bounded proportion (% or 0–1)", desc: "% positive stained area, % time in open-field center, % freezing, % correct trials, fraction of cells co-expressing markers.", value: "proportion", next: "compare_prop_design",
+        warning: "Bounded data (0–100% or 0–1) handled with t-tests can be misleading near the floor/ceiling — a 5%→15% shift is biologically different from a 50%→60% shift but a t-test treats them the same." },
+      { label: "Count", desc: "Cell counts per ROI/region (IHC), # lever presses, # rears, # bouts, spike counts per trial.", value: "count", next: "count_dispersion",
+        warning: "Counts are rarely normal. Don't t-test counts without checking — switch to Poisson/NegBin family, and use an offset if the area/time observed differs across animals." },
+      { label: "Ordinal / scored", desc: "Neurological severity score, dyskinesia rating, Likert, pain scale 0–10.", value: "ordinal", next: "compare_ordinal",
+        warning: "Treating an ordinal scale as continuous (e.g. averaging 0–5 scores) is common but can mask real effects and inflate Type I error." },
+      { label: "Binary", desc: "Did the animal learn? Reach criterion? One yes/no per animal, or correct/incorrect per trial.", value: "binary", next: "compare_binary" }
+    ]
+  },
+  compare_design: {
+    type: "question",
+    label: "Design",
+    title: "Are observations independent, paired, or nested?",
+    hint: "Pseudoreplication is the single most common stats error in neurobiology — treating cells/trials within an animal as independent inflates your effective N and your false-positive rate dramatically.",
+    options: [
+      { label: "Independent", desc: "One value per animal, animals randomly assigned to groups.", value: "independent", next: "compare_ngroups" },
+      { label: "Paired / within-subject", desc: "Same animal measured in two conditions (pre/post drug, two stimuli).", value: "paired", next: "compare_paired_dist" },
+      { label: "Nested (cells within animals, trials within sessions)", desc: "Multiple measurements per animal, multiple animals per group.", value: "nested", next: "compare_nested",
+        warning: "Nested data: do not collapse to per-animal means without justification, and do not treat cells as independent. Use a mixed-effects model." },
+      { label: "Multi-factor (e.g. drug × genotype)", desc: "Two or more crossed factors of interest.", value: "factorial", next: "compare_factorial" }
+    ]
+  },
+  compare_ngroups: {
+    type: "question",
+    label: "# of groups",
+    title: "How many groups are you comparing?",
+    hint: "With 3+ groups you need to handle multiple comparisons. Running multiple pairwise t-tests inflates Type I error fast.",
+    options: [
+      { label: "Two groups", desc: "Classic A vs B comparison.", value: "two", next: "compare_n_normality" },
+      { label: "Three or more", desc: "Several doses, multiple genotypes, time bins.", value: "many", next: "compare_n_normality_multi" }
+    ]
+  },
+  compare_n_normality: {
+    type: "question",
+    label: "Distribution",
+    title: "Sample size and distribution shape?",
+    hint: "Look at the data first. Q-Q plot, histogram, density. Shapiro-Wilk is fine but at small N it has low power to detect non-normality — at large N it flags trivial deviations.",
+    options: [
+      { label: "Small N (≤10/group), shape unclear", desc: "Typical mouse cohort. Hard to verify normality.", value: "smalln", next: "leaf_2group_smalln",
+        warning: "At n≤10, you cannot reliably check normality. Default to robust methods or Bayesian estimation with informative priors." },
+      { label: "Moderate-large N, roughly normal", desc: "n≥15/group, symmetric histogram, no extreme outliers.", value: "normal", next: "compare_variance" },
+      { label: "Non-normal (skewed, heavy tails, bounded)", desc: "Time data, % freezing near 0 or 100, behavioral scores.", value: "nonnormal", next: "leaf_2group_nonparam" }
+    ]
+  },
+  compare_variance: {
+    type: "question",
+    label: "Variance",
+    title: "Are the two groups' variances roughly equal?",
+    hint: "Levene's or Brown-Forsythe is standard. Genotype/disease groups often have more variance than controls — common enough that Welch's t is the safer default.",
+    options: [
+      { label: "Approximately equal", desc: "Visual spread is similar in both groups.", value: "equal", next: "leaf_2group_student" },
+      { label: "Unequal / unsure", desc: "Different spread, or you can't tell.", value: "unequal", next: "leaf_2group_welch" }
+    ]
+  },
+  compare_n_normality_multi: {
+    type: "question",
+    label: "Distribution",
+    title: "Distribution and sample size for ≥3 groups?",
+    hint: "Same logic as the two-group case, but now you also need to think about post-hoc corrections.",
+    options: [
+      { label: "Small N (≤10/group)", desc: "Typical mouse cohorts across 3+ conditions.", value: "smalln", next: "leaf_anova_smalln",
+        warning: "Small-N ANOVA has very low power for realistic neurobio effect sizes. Bayesian hierarchical models often shine here." },
+      { label: "Moderate-large N, roughly normal", desc: "Approximately Gaussian within each group.", value: "normal", next: "leaf_anova" },
+      { label: "Non-normal", desc: "Skewed, bounded, or with extreme outliers.", value: "nonnormal", next: "leaf_kw" }
+    ]
+  },
+  compare_paired_dist: {
+    type: "question",
+    label: "Differences",
+    title: "What does the distribution of within-subject differences look like?",
+    hint: "For paired tests, normality is about the *differences*, not the raw values. A learning effect can make raw values bimodal but differences clean.",
+    options: [
+      { label: "Roughly normal", desc: "Differences are symmetric, no extreme outliers.", value: "normal", next: "leaf_paired_t" },
+      { label: "Skewed / outliers / small N", desc: "Differences asymmetric or only a handful of animals.", value: "nonnormal", next: "leaf_wilcoxon" }
+    ]
+  },
+  compare_nested: {
+    type: "question",
+    label: "Nesting depth",
+    title: "How is the nesting structured?",
+    hint: "Whether you have cells-in-animals, trials-in-sessions, or both — random effects are how you tell the model that observations within a unit are correlated.",
+    options: [
+      { label: "Cells within animals (or trials within sessions)", desc: "One level of nesting. Random intercept per animal.", value: "one_level", next: "leaf_lmm" },
+      { label: "Cells within sessions within animals", desc: "Two levels of nesting. Crossed or nested random effects.", value: "two_level", next: "leaf_lmm_deep" },
+      { label: "Repeated measures + nesting", desc: "Same animals measured longitudinally with multiple cells.", value: "rm_nested", next: "leaf_lmm_long" }
+    ]
+  },
+  compare_factorial: {
+    type: "question",
+    label: "Factors",
+    title: "Are you interested in main effects, interactions, or both?",
+    hint: "Powering a study to detect an interaction usually requires ~4× the N of a main-effect study. Many published 'drug × genotype' studies are underpowered for the interaction.",
+    options: [
+      { label: "Both main effects and interaction", desc: "Standard 2×2 design.", value: "both", next: "leaf_factorial" },
+      { label: "Mainly the interaction", desc: "The biological story is 'does drug effect depend on genotype?'.", value: "interaction", next: "leaf_factorial_interaction",
+        warning: "Interaction effects require notably larger samples than main effects. Consider Bayesian estimation to report posterior over the interaction term with honest uncertainty." }
+    ]
+  },
+  compare_ordinal: {
+    type: "question",
+    label: "# groups (ordinal)",
+    title: "How many groups for the ordinal outcome?",
+    hint: "Ordinal outcomes — behavioral severity scores, Likert — should generally be modeled with cumulative-link models, not t-tests on means.",
+    options: [
+      { label: "Two groups", desc: "Compare ordinal scores between two conditions.", value: "two", next: "leaf_ordinal_2" },
+      { label: "Three or more", desc: "Multiple conditions or doses.", value: "many", next: "leaf_ordinal_many" }
+    ]
+  },
+  compare_binary: {
+    type: "question",
+    label: "Binary design",
+    title: "How is the binary outcome measured?",
+    hint: "A binary response per trial with many trials per animal is very different from one yes/no per animal — the first needs a GLMM.",
+    options: [
+      { label: "One yes/no per animal", desc: "Did the animal freeze in the test? Did it reach criterion in lever-press acquisition? Did it learn the platform location?", value: "per_animal", next: "leaf_binary_simple" },
+      { label: "Many trials per animal", desc: "Correct/incorrect on each lever-press trial across 100s of trials; freezing per CS presentation; go/no-go decisions.", value: "per_trial", next: "leaf_binary_glmm",
+        warning: "Multiple trials per animal: a chi-square pooling all trials ignores within-animal correlation and badly inflates Type I error." }
+    ]
+  },
+
+  compare_prop_design: {
+    type: "question",
+    label: "Proportion structure",
+    title: "How is the bounded proportion measured?",
+    hint: "% positive stained area is almost always nested (sections within animals). % time in open-field center is usually one number per animal. The design drives whether you need a GLMM with random intercepts.",
+    options: [
+      { label: "One proportion per animal", desc: "% time in open-field center (single 10-min session); overall % freezing across the test; % correct collapsed across trials.", value: "per_animal", next: "leaf_proportion_simple" },
+      { label: "Multiple proportions per animal (sections / ROIs / sessions)", desc: "% positive stained area across 4–6 sections per animal; % time-in-center across multiple sessions; layer/region-specific proportions per brain.", value: "nested", next: "leaf_proportion_glmm",
+        warning: "Pooling sections within an animal into a single mean discards information about within-animal variability. Treating sections as independent inflates effective N and false-positive rate." },
+      { label: "Near the floor or ceiling", desc: "Values clustered near 0% or 100% (e.g. strong fear conditioning with most animals freezing 90%+; sparse staining near 0%).", value: "extreme", next: "leaf_proportion_extreme",
+        warning: "At the ceiling/floor, t-tests heavily compress effects. Beta regression with a logit link is essential — and zero/one-inflated beta if exact 0s or 1s occur." }
+    ]
+  },
+
+  /* ====================== RELATIONSHIPS ====================== */
+  rel_type: {
+    type: "question",
+    label: "Relationship type",
+    title: "What's the shape of the relationship?",
+    hint: "Pearson r assumes linearity AND bivariate normality. Most neurobio scatterplots violate at least one.",
+    options: [
+      { label: "Both continuous, expected linear", desc: "E.g. body weight vs locomotor distance.", value: "linear", next: "leaf_pearson" },
+      { label: "Monotonic but possibly nonlinear", desc: "Anxiety score vs cortisol — order matters, shape may bend.", value: "monotonic", next: "leaf_spearman" },
+      { label: "Predict Y from one or more X", desc: "You want a model, not just an association.", value: "regression", next: "rel_predictors" },
+      { label: "Nonlinear or threshold-y", desc: "Dose-response with plateau, sigmoidal, exponential decay.", value: "nonlinear", next: "leaf_nonlinear" }
+    ]
+  },
+  rel_predictors: {
+    type: "question",
+    label: "Predictors",
+    title: "How many predictors, and what type?",
+    hint: "Multiple regression with small N + many predictors overfits brutally. Rule of thumb: at least 10–20 observations per predictor.",
+    options: [
+      { label: "One predictor, continuous outcome", desc: "Simple linear regression.", value: "one", next: "leaf_simple_reg" },
+      { label: "Multiple predictors, continuous outcome", desc: "Multiple regression.", value: "multi", next: "leaf_multi_reg",
+        warning: "Multiple regression with small N: variable selection by stepwise / p-values is unreliable. Use regularization (LASSO/ridge) or Bayesian shrinkage priors." },
+      { label: "Continuous outcome, mixed nesting", desc: "Animals nested in cohorts, sites, batches.", value: "nested", next: "leaf_lmm" }
+    ]
+  },
+
+  /* ====================== LONGITUDINAL ====================== */
+  long_shape: {
+    type: "question",
+    label: "Time shape",
+    title: "What's the expected trajectory over time?",
+    hint: "Repeated-measures ANOVA assumes sphericity (violated more often than not in neural/behavioral time series). Mixed-effects models are nearly always the better default.",
+    options: [
+      { label: "Approximately linear over time", desc: "Weight gain, monotonic recovery.", value: "linear", next: "leaf_long_linear" },
+      { label: "Nonlinear (learning curve, drug onset)", desc: "S-shaped, exponential plateau, peak-and-decline.", value: "nonlinear", next: "leaf_long_nonlinear" },
+      { label: "Few discrete timepoints (e.g. pre/mid/post)", desc: "3–4 timepoints, you mostly care about contrasts.", value: "discrete", next: "leaf_long_discrete" }
+    ]
+  },
+
+  /* ====================== COUNTS ====================== */
+  count_dispersion: {
+    type: "question",
+    label: "Count behaviour",
+    title: "Are your counts well-behaved Poisson, overdispersed, or zero-inflated?",
+    hint: "Check variance-to-mean ratio. Poisson assumes var=mean. If var ≫ mean (typical for IHC cell counts across animals, also firing rates), you're overdispersed. If there are far more zeros than Poisson predicts, you're zero-inflated.",
+    options: [
+      { label: "var ≈ mean, few zeros", desc: "Clean Poisson behavior — rare in real biology.", value: "poisson", next: "count_design" },
+      { label: "var > mean (overdispersed)", desc: "The default for IHC cell counts (between-animal variability in tissue prep, staining, baseline density) and firing-rate data.", value: "negbin", next: "count_design" },
+      { label: "Many more zeros than expected", desc: "Rare-behavior bouts, sparse calcium events, immediate-early gene staining in non-activated regions.", value: "zinb", next: "count_design",
+        warning: "Zero-inflation can come from two sources (no behavior emitted vs behavior emitted but missed; truly absent staining vs failed detection). Zero-inflated NegBin lets you model them separately." }
+    ]
+  },
+  count_design: {
+    type: "question",
+    label: "Count nesting",
+    title: "Do you have one count per animal, or several?",
+    hint: "IHC almost always means several counts per animal — typically 4–6 sections per region per animal. Behavioral counts (# lever presses in a session) often collapse to one per animal. Multi-region IHC may give you region × section × animal.",
+    options: [
+      { label: "One count per animal", desc: "Total lever presses in a session, # rears across the whole test, single-section cell count.", value: "simple", next: "leaf_count_simple" },
+      { label: "Multiple counts per animal (sections / ROIs / regions)", desc: "Cell counts across 4–6 sections per region per animal; # presses across multiple sessions; counts in multiple brain regions per animal.", value: "nested", next: "leaf_count_glmm",
+        warning: "Treating sections as independent observations is the most common IHC stats error. Biological replicate = animal, not section. Always model animal as a random effect (or pool to per-animal means with an explicit choice)." },
+      { label: "Counts with different exposures across animals", desc: "Section thickness varies; observation duration differs; ROI area differs.", value: "offset", next: "leaf_count_offset",
+        warning: "Don't compare raw counts when exposures differ. Use an offset term (log(area) or log(time)) so the model estimates rates rather than counts." }
+    ]
+  },
+
+  /* ====================== SURVIVAL ====================== */
+  surv_censor: {
+    type: "question",
+    label: "Censoring",
+    title: "Do you have censoring (animals that didn't reach the event)?",
+    hint: "If every animal completes the behavior, you don't strictly need survival methods — but they often still help with skewed latencies.",
+    options: [
+      { label: "Yes, some animals censored", desc: "Cut-off time reached, dropout, no response.", value: "censored", next: "leaf_survival" },
+      { label: "No censoring", desc: "Every animal eventually reached the event.", value: "complete", next: "leaf_latency",
+        warning: "Latency / time-to-event data is almost always right-skewed. Don't summarize with mean ± SD — use median + IQR, or model with a Weibull/lognormal." }
+    ]
+  },
+
+  /* ========================== LEAVES ========================== */
+  leaf_2group_student: {
+    type: "result",
+    title: "Two-group comparison — continuous, normal, equal variance",
+    freq: {
+      name: "Student's independent t-test",
+      desc: "Compare two independent group means under normality and equal variance.",
+      code: "scipy.stats.ttest_ind(a, b, equal_var=True)\n# R: t.test(y ~ group, var.equal = TRUE)",
+      why: "Classic test; well-powered when assumptions hold; reports effect via mean difference + t/p."
+    },
+    bayes: {
+      name: "BEST (Bayesian Estimation Supersedes the t-Test)",
+      desc: "Robust Bayesian estimation of group means using a t-distribution likelihood (less outlier-sensitive). Returns full posterior over the difference.",
+      code: "# Python: pip install bambi pymc\nimport bambi as bmb\nm = bmb.Model('y ~ group', data=df, family='t')\nidata = m.fit()\n# R: brms::brm(y ~ group, data = df, family = student())",
+      why: "Gives you a credible interval for the mean difference and the probability that one group exceeds the other — no dichotomous p-value needed."
+    },
+    pitfalls: [
+      "If you cannot verify normality at this sample size, prefer Welch's or BEST.",
+      "A non-significant p-value is not evidence for the null — use Bayes factor or equivalence testing (TOST) if that's what you want to claim."
+    ],
+    neuro: "In neurobio: 'equal variance' is suspect when one group has a knockout/lesion/disease state — heterogeneity is part of the biology. Welch's is the safer routine default."
+  },
+  leaf_2group_welch: {
+    type: "result",
+    title: "Two-group comparison — continuous, normal, unequal variance",
+    freq: {
+      name: "Welch's t-test",
+      desc: "Modified t-test that does not assume equal variances. Use as the default two-group test in most neurobio settings.",
+      code: "scipy.stats.ttest_ind(a, b, equal_var=False)\n# R: t.test(y ~ group)  # default in R",
+      why: "Robust to unequal variances with little cost when variances are actually equal. Should arguably be the default rather than Student's."
+    },
+    bayes: {
+      name: "BEST with separate variance per group",
+      desc: "Robust Bayesian estimation with group-specific variance parameters AND a t-likelihood. Handles both heteroscedasticity and outliers.",
+      code: "# R: brms\nbrm(bf(y ~ group, sigma ~ group), data = df, family = student())",
+      why: "Models both heteroscedasticity and heavy tails. Posterior over the difference in means, in variances, and in effect size."
+    },
+    pitfalls: [
+      "Reporting 'no difference' from a non-significant p: insufficient. Compute a Bayes factor or report the 95% CI explicitly."
+    ],
+    neuro: "Best default for genotype vs WT, drug vs vehicle, lesion vs sham when N is moderate and the distributions look roughly Gaussian. Typical examples: open-field total distance, running-wheel daily distance averaged across week 1, cell density per animal (cells/mm² collapsed across sections). Plot raw points + group means; show every animal."
+  },
+  leaf_2group_nonparam: {
+    type: "result",
+    title: "Two-group comparison — non-normal data",
+    freq: {
+      name: "Mann–Whitney U (Wilcoxon rank-sum)",
+      desc: "Rank-based comparison of two independent samples. Tests whether one distribution is stochastically larger.",
+      code: "scipy.stats.mannwhitneyu(a, b, alternative='two-sided')\n# R: wilcox.test(y ~ group)",
+      why: "Robust to skewness and outliers. Strictly speaking tests stochastic dominance, not means."
+    },
+    bayes: {
+      name: "Robust BEST with t-likelihood, OR ordinal regression on ranks",
+      desc: "Either use BEST with a Student-t likelihood (low df) for outlier-robust estimation, or fit an ordinal model on the ranked data.",
+      code: "# R: brms\nbrm(y ~ group, data = df, family = student())\n# Or for full nonparametric flavour:\nbrm(rank ~ group, data = df, family = cumulative())",
+      why: "Gives you an interpretable posterior for a location-shift parameter rather than just a p-value on ranks."
+    },
+    pitfalls: [
+      "Mann–Whitney is often described as 'comparing medians' — it doesn't, strictly. It compares the probability that a random value from group A exceeds one from group B.",
+      "If the distributions have different shapes (not just locations), the interpretation is murky."
+    ],
+    neuro: "Common in behavior: % freezing, latency scores, time in zone. Always show the raw distributions — a swarm/strip plot is more informative than the test."
+  },
+  leaf_2group_smalln: {
+    type: "result",
+    title: "Two-group comparison — small N, normality unverifiable",
+    freq: {
+      name: "Welch's t-test (and report CI) — but with humility",
+      desc: "Run Welch's, but treat the p-value with caution. Permutation tests are a better small-N option when you have at least, say, 6/group.",
+      code: "# Welch's:\nscipy.stats.ttest_ind(a, b, equal_var=False)\n\n# Permutation:\nscipy.stats.permutation_test((a, b), lambda x, y: x.mean()-y.mean(),\n  permutation_type='independent', n_resamples=10000)",
+      why: "Permutation tests avoid the normality assumption entirely and behave well at small N."
+    },
+    bayes: {
+      name: "BEST with weakly informative priors (preferred at small N)",
+      desc: "Bayesian estimation with a Student-t likelihood and priors centered on biologically plausible effect sizes. Reports a posterior over the mean difference and Cohen's d.",
+      code: "# R: brms\npriors <- c(prior(normal(0, 1), class = b),\n            prior(normal(0, 2), class = Intercept))\nbrm(y ~ group, data = df, family = student(), prior = priors)",
+      why: "At n=5–10/group, frequentist confidence intervals are extremely wide and unstable. Weakly informative priors regularize the estimate without dictating the conclusion."
+    },
+    pitfalls: [
+      "Small-N significance is fragile: one outlier can flip the result.",
+      "A 'significant' p at n=5/group is not evidence of a robust effect — it's evidence of either a large effect or noise. Replicate before claiming.",
+      "Power to detect realistic effects (d=0.5) at n=8/group is around 14% — most studies are too small to find what they're looking for."
+    ],
+    neuro: "Most mouse studies are here. Be honest about uncertainty. Pre-registered replication or Bayesian sequential analysis are both worth considering."
+  },
+  leaf_paired_t: {
+    type: "result",
+    title: "Paired comparison — normal differences",
+    freq: {
+      name: "Paired t-test",
+      desc: "One-sample t-test on the within-subject differences. Drops between-animal variance from the noise.",
+      code: "scipy.stats.ttest_rel(pre, post)\n# R: t.test(post, pre, paired = TRUE)",
+      why: "Often much more powerful than independent t when within-animal variance is small relative to between-animal."
+    },
+    bayes: {
+      name: "BEST on the difference scores",
+      desc: "Bayesian one-sample estimation of the mean difference using a robust likelihood.",
+      code: "# R: brms\nbrm(diff ~ 1, data = df, family = student())",
+      why: "Posterior over the average within-animal change, plus credible interval."
+    },
+    pitfalls: [
+      "Paired analyses only work when the pairing is meaningful — randomly pairing animals across conditions invalidates the test.",
+      "Order effects (carryover, habituation) can bias paired tests in repeated behavioral designs."
+    ],
+    neuro: "Pre/post drug in the same animal (baseline open-field followed by drug open-field), two-stimulus comparison within a recording, within-cell measurements. Watch for time-of-day / order / habituation confounds; counterbalance where possible (e.g. half cohort vehicle-then-drug, half drug-then-vehicle)."
+  },
+  leaf_wilcoxon: {
+    type: "result",
+    title: "Paired comparison — non-normal differences or small N",
+    freq: {
+      name: "Wilcoxon signed-rank test",
+      desc: "Rank-based version of the paired t-test.",
+      code: "scipy.stats.wilcoxon(pre, post)\n# R: wilcox.test(post, pre, paired = TRUE)",
+      why: "Robust to non-normality of the differences."
+    },
+    bayes: {
+      name: "Robust paired BEST",
+      desc: "Bayesian estimation on the differences with a t-likelihood.",
+      code: "# R: brms\nbrm(diff ~ 1, data = df, family = student())",
+      why: "Same machinery as the normal case but lets the model down-weight outliers automatically."
+    },
+    pitfalls: [
+      "At very small N (n<6), Wilcoxon cannot reach significance at α=0.05 in some configurations — be aware of the minimum-N issue."
+    ],
+    neuro: "Latency differences, behavior-score changes within-animal. The Bayesian version is more informative because it returns an effect-size posterior, not just a p."
+  },
+  leaf_anova: {
+    type: "result",
+    title: "3+ group comparison — normal, independent",
+    freq: {
+      name: "One-way ANOVA + Tukey HSD (or Dunnett's vs control)",
+      desc: "Test for any group difference, then post-hoc compare pairs with FWER control.",
+      code: "scipy.stats.f_oneway(*groups)\n# R: aov(y ~ group); TukeyHSD(); or DescTools::DunnettTest()",
+      why: "Standard, well-understood; controls family-wise error with Tukey/Dunnett."
+    },
+    bayes: {
+      name: "Hierarchical model with group-level intercepts",
+      desc: "Treat 'group' as a categorical predictor, get a posterior over each group mean and each contrast simultaneously.",
+      code: "# R: brms\nbrm(y ~ group, data = df, family = gaussian())\n# Use emmeans + brms for all pairwise contrasts with full uncertainty.",
+      why: "No need to correct for multiple comparisons in the frequentist sense — the joint posterior already accounts for the shared model and shrinks estimates toward the grand mean."
+    },
+    pitfalls: [
+      "An overall ANOVA p-value alone is rarely the scientific answer. Report which contrasts matter and their effect sizes.",
+      "Bonferroni post-hoc is conservative; for many comparisons consider FDR or a single Bayesian model."
+    ],
+    neuro: "Multi-dose lever-press studies (vehicle + 3 doses), multi-genotype comparisons (WT / Het / KO), multi-region IHC comparisons. Hierarchical Bayesian shrinkage is especially helpful when some groups have noisy estimates or one group is small."
+  },
+  leaf_anova_smalln: {
+    type: "result",
+    title: "3+ group comparison — small N",
+    freq: {
+      name: "One-way ANOVA (Welch correction) + permutation post-hoc",
+      desc: "Use Welch's ANOVA to avoid the equal-variance assumption; permutation post-hocs to avoid normality.",
+      code: "# R: oneway.test(y ~ group)  # Welch's ANOVA\n# Permutation: coin::oneway_test or scipy.stats.permutation_test",
+      why: "More robust than classical ANOVA when assumptions are uncertain."
+    },
+    bayes: {
+      name: "Hierarchical model with weakly informative priors",
+      desc: "Partial pooling across groups stabilizes small-N estimates dramatically.",
+      code: "# R: brms\npriors <- c(prior(normal(0, 1), class = b),\n            prior(student_t(3, 0, 1), class = sd))\nbrm(y ~ (1|group), data = df, prior = priors)",
+      why: "Hierarchical shrinkage pulls noisy group means toward the overall mean by an amount that depends on the data — exactly what you want with n=5–8/group."
+    },
+    pitfalls: [
+      "Multi-group small-N studies are very prone to false positives in the most-different pair due to selection bias.",
+      "Report all contrasts and effect sizes, not just the significant ones."
+    ],
+    neuro: "Typical 'screen 4 doses in n=6 mice each' running-wheel or lever-press study. Also: 4-region IHC comparison with n=6 animals. Bayesian hierarchical analysis is borderline mandatory here — frequentist ANOVA at this N is just guessing, and partial pooling across doses/regions stabilises the per-group estimates."
+  },
+  leaf_kw: {
+    type: "result",
+    title: "3+ group comparison — non-normal",
+    freq: {
+      name: "Kruskal–Wallis + Dunn's test",
+      desc: "Rank-based generalisation of Mann–Whitney to 3+ groups, with pairwise post-hocs.",
+      code: "scipy.stats.kruskal(*groups)\n# R: kruskal.test(y ~ group); dunn.test::dunn.test(y, group)",
+      why: "Doesn't require normality; reasonable power if shapes are similar across groups."
+    },
+    bayes: {
+      name: "Ordinal regression (cumulative-link) or robust Bayesian ANOVA",
+      desc: "Model the outcome with a Student-t likelihood, or as ordinal if it's truly rank-y.",
+      code: "# R: brms (robust)\nbrm(y ~ group, data = df, family = student())\n# Or fully ordinal:\nbrm(rank ~ group, data = df, family = cumulative())",
+      why: "Returns posteriors over interpretable effects rather than rank statistics."
+    },
+    pitfalls: [
+      "Like Mann–Whitney, Kruskal–Wallis is not strictly a test of medians.",
+      "If group shapes differ substantially, both the Bayesian robust and the KW results need to be interpreted with care."
+    ],
+    neuro: "Open-field % time in center across multiple groups (often skewed), elevated-plus-maze time in open arms across drug doses, escape latencies across groups. If your outcome is bounded 0–100%, the bounded-proportion branch is the better choice."
+  },
+  leaf_lmm: {
+    type: "result",
+    title: "Nested data — cells in animals, or trials in sessions",
+    freq: {
+      name: "Linear mixed-effects model (LMM)",
+      desc: "Fixed effect of group, random intercept (and possibly slope) per animal.",
+      code: "# R: lme4 + lmerTest\nlmer(y ~ group + (1|animal), data = df)\n# Python: statsmodels.formula.api.mixedlm",
+      why: "Correctly handles within-animal correlation; gives you a per-animal effect without pseudoreplicating."
+    },
+    bayes: {
+      name: "Bayesian hierarchical model (brms)",
+      desc: "Same model structure but estimated with MCMC. Returns full posteriors over fixed and random effects.",
+      code: "# R: brms\nbrm(y ~ group + (1|animal), data = df,\n    prior = c(prior(normal(0,1), class=b)),\n    family = gaussian())",
+      why: "Bayesian mixed models are more stable than lme4 when N animals is small, when variance components are near zero, or when the model is complex enough to cause convergence issues."
+    },
+    pitfalls: [
+      "Don't 'average to per-animal means' as a shortcut unless every animal contributes equally — you lose information and can mislead.",
+      "Treating cells as independent observations is pseudoreplication. This is the #1 error in cellular neuroscience.",
+      "Random slopes (e.g. (1+group|animal)) require enough animals and conditions per animal — won't converge in lme4 with small N, but brms can handle it."
+    ],
+    neuro: "Patch-clamp recordings, calcium imaging, in vivo electrophysiology — any time you have many cells per animal. Also applies to continuous IHC measures: mean fluorescence intensity per cell or per ROI, cell density (cells/mm²) across sections per animal. Mixed-effects is the right answer; the only question is frequentist vs Bayesian, and at low animal-N Bayesian usually wins. For raw cell counts or % stained area, prefer the dedicated count or proportion branches."
+  },
+  leaf_lmm_deep: {
+    type: "result",
+    title: "Deeply nested data (cells × sessions × animals)",
+    freq: {
+      name: "Mixed-effects model with multiple random effects",
+      desc: "Random intercept for animal AND for session-within-animal.",
+      code: "# R: lme4\nlmer(y ~ group + (1|animal/session), data = df)",
+      why: "Tells the model that observations within a session are more correlated than across sessions within an animal."
+    },
+    bayes: {
+      name: "Hierarchical brms with nested random effects",
+      desc: "Same structure but estimated in Stan via brms.",
+      code: "# R: brms\nbrm(y ~ group + (1|animal/session), data = df, family = gaussian())",
+      why: "Convergence is more reliable than lme4 for complex nesting at modest sample sizes."
+    },
+    pitfalls: [
+      "lme4 frequently fails to converge on complex random-effect structures with small N — and the workarounds (e.g. simplifying to (1|animal)) discard information.",
+      "Don't add random slopes for predictors that don't vary within the grouping level."
+    ],
+    neuro: "Multi-session imaging, chronic recordings, behavioral testing across days. Bayesian is the more honest default at this complexity."
+  },
+  leaf_lmm_long: {
+    type: "result",
+    title: "Longitudinal + nested data",
+    freq: {
+      name: "LMM with random intercepts AND slopes over time",
+      desc: "Animal-specific trajectories with a fixed effect of group on the slope.",
+      code: "# R: lme4\nlmer(y ~ group * time + (1+time|animal), data = df)",
+      why: "Lets each animal have its own learning curve while testing whether group changes the curve."
+    },
+    bayes: {
+      name: "Hierarchical brms with random slopes",
+      desc: "Same model in Stan, plus the option of nonlinear curves via splines / GAMs.",
+      code: "# R: brms (linear)\nbrm(y ~ group*time + (1+time|animal), data = df)\n# Nonlinear:\nbrm(y ~ s(time, by = group) + (1|animal), data = df)",
+      why: "Cleaner uncertainty quantification on slopes; can extend to nonlinear via splines without changing tooling."
+    },
+    pitfalls: [
+      "Repeated-measures ANOVA on this kind of data is almost always wrong — it ignores individual trajectories.",
+      "Missing data: LMMs handle missing-at-random data correctly; ANOVAs typically drop the whole subject."
+    ],
+    neuro: "Spatial learning curves, drug onset over days, recovery from injury."
+  },
+  leaf_factorial: {
+    type: "result",
+    title: "Factorial design (e.g. drug × genotype)",
+    freq: {
+      name: "Two-way ANOVA",
+      desc: "Test main effects of each factor and the interaction.",
+      code: "# R: aov(y ~ drug * genotype, data = df)\n# Python: statsmodels.formula.api.ols('y ~ drug*genotype', df).fit()",
+      why: "Standard; reports F and p for each term."
+    },
+    bayes: {
+      name: "Bayesian linear model with interaction term",
+      desc: "Posterior over each main effect AND the interaction term.",
+      code: "# R: brms\nbrm(y ~ drug*genotype, data = df, family = gaussian())",
+      why: "You get a posterior probability that the interaction is non-zero, plus its credible interval — much more informative than a p-value alone."
+    },
+    pitfalls: [
+      "A non-significant interaction at small N is not evidence of additivity. Use a Bayes factor or equivalence-test the interaction.",
+      "Unbalanced designs change the Type-I vs Type-II vs Type-III SS interpretation in classical ANOVA — be explicit."
+    ],
+    neuro: "Drug × genotype, sex × condition, environment × strain. Always report the interaction posterior/CI even if it 'isn't significant'."
+  },
+  leaf_factorial_interaction: {
+    type: "result",
+    title: "Factorial design — interaction is the focus",
+    freq: {
+      name: "Two-way ANOVA with planned interaction contrast",
+      desc: "Pre-specify the interaction contrast and test it directly.",
+      code: "# R: emmeans for contrast\nm <- lm(y ~ drug*genotype, data=df)\nemmeans::emmeans(m, ~ drug*genotype) |> contrast(interaction = 'pairwise')",
+      why: "Standard parametric approach."
+    },
+    bayes: {
+      name: "Bayesian model with informative prior on interaction",
+      desc: "Bayesian estimation lets you compute Pr(interaction > 0 | data) directly, and use prior knowledge of plausible interaction magnitudes.",
+      code: "# R: brms\nbrm(y ~ drug*genotype, data = df,\n    prior = c(prior(normal(0,1), class=b),\n              prior(normal(0,0.5), class=b, coef='drug:genotype')))",
+      why: "Powers up the interaction test by regularizing the main effects."
+    },
+    pitfalls: [
+      "Powering for the interaction requires roughly 4× the N of main effects. Most published interaction claims are underpowered.",
+      "Removing 'non-significant' main effects to test the interaction is data dredging."
+    ],
+    neuro: "Critical for mechanism papers: 'drug effect depends on genotype'. If you can't replicate at adequate N, report Bayesian uncertainty honestly rather than emphasising the p."
+  },
+  leaf_ordinal_2: {
+    type: "result",
+    title: "Ordinal outcome — two groups",
+    freq: {
+      name: "Mann–Whitney U on ranks",
+      desc: "Rank-based comparison; treats the ordinal scale honestly.",
+      code: "scipy.stats.mannwhitneyu(a, b)",
+      why: "Standard nonparametric option; no normality assumed."
+    },
+    bayes: {
+      name: "Cumulative-link ordinal model",
+      desc: "Models the ordinal outcome directly with thresholds between categories.",
+      code: "# R: brms\nbrm(score ~ group, data = df, family = cumulative())\n# or ordinal::clm(score ~ group, data = df)",
+      why: "Gives an interpretable effect size (log-odds of being in a higher category) and respects the ordering."
+    },
+    pitfalls: [
+      "Treating a 5-point score as continuous (t-test on means) is common and can either inflate or deflate effects depending on category spacing.",
+      "If your scale has a strong ceiling/floor, ordinal models handle it; linear models do not."
+    ],
+    neuro: "Neurological severity scores in disease models, dyskinesia (AIM) scores, conditioned-place-preference rankings, von Frey pain scales 0–10, open-field activity ranks."
+  },
+  leaf_ordinal_many: {
+    type: "result",
+    title: "Ordinal outcome — 3+ groups",
+    freq: {
+      name: "Kruskal–Wallis + Dunn's post-hoc",
+      desc: "Rank-based ANOVA equivalent.",
+      code: "scipy.stats.kruskal(*groups)",
+      why: "Standard nonparametric option."
+    },
+    bayes: {
+      name: "Cumulative-link ordinal model with categorical predictor",
+      desc: "Single model that gives you posteriors over all group contrasts at once.",
+      code: "# R: brms\nbrm(score ~ group, data = df, family = cumulative())",
+      why: "No multiple-comparisons correction in the frequentist sense — joint posterior handles it via the shared scale."
+    },
+    pitfalls: [
+      "Same caveats as the two-group ordinal case."
+    ],
+    neuro: "Multi-dose behavior scoring, multi-group neurological severity, cohort comparisons."
+  },
+  leaf_binary_simple: {
+    type: "result",
+    title: "Binary outcome — one per animal",
+    freq: {
+      name: "Fisher's exact test (small N) or χ² (larger N)",
+      desc: "Compares proportions across groups.",
+      code: "# Fisher (preferred at small N or any expected cell <5):\nscipy.stats.fisher_exact(table)\n# R: fisher.test(table); chisq.test(table)",
+      why: "Standard for 2×2 tables."
+    },
+    bayes: {
+      name: "Beta-Binomial / Bayesian proportion comparison",
+      desc: "Posterior over each group's success probability and over the difference.",
+      code: "# R: brms\nbrm(success ~ group, data = df, family = bernoulli())\n# Or analytic Beta(a+1, b+1) per group for closed-form.",
+      why: "Reports credible intervals for the success rate and the risk difference / odds ratio."
+    },
+    pitfalls: [
+      "Don't report ORs without their CI. Confidence intervals for ORs at small N are extremely wide.",
+      "When success or failure count is zero in any cell, add a continuity correction or use exact methods."
+    ],
+    neuro: "Did the mouse reach FR5 acquisition criterion within 10 sessions? Did it freeze in the test? Did it pass a Morris-water-maze probe criterion? Binary endpoints are common but lose information vs continuous — # sessions to criterion or total freezing time is usually more powerful than the binary yes/no."
+  },
+  leaf_binary_glmm: {
+    type: "result",
+    title: "Binary outcome — many trials per animal",
+    freq: {
+      name: "Generalized linear mixed model (GLMM, logistic)",
+      desc: "Trial-level binary outcome with random intercept per animal.",
+      code: "# R: lme4\nglmer(correct ~ condition + (1|animal), data = df, family = binomial)",
+      why: "Correctly handles within-animal correlation in trial-level data."
+    },
+    bayes: {
+      name: "Bayesian logistic mixed model",
+      desc: "Same structure in brms, more reliable convergence at small N.",
+      code: "# R: brms\nbrm(correct ~ condition + (1|animal), data = df, family = bernoulli())",
+      why: "Returns posteriors over fixed effects and the animal-level variance component."
+    },
+    pitfalls: [
+      "A simple χ² on pooled trials hugely inflates Type I error because trials within an animal aren't independent.",
+      "If condition varies within animal, use (1+condition|animal) when N animals supports it."
+    ],
+    neuro: "Lever-press correct/incorrect on each trial (200–800 trials per animal in a session), 2AFC perceptual decisions, go/no-go performance, freezing per CS presentation. Mixed-effects logistic is the standard answer. If you also want to model how performance changes within a session, add (1+trial|animal) as random effects."
+  },
+  leaf_pearson: {
+    type: "result",
+    title: "Linear association between two continuous variables",
+    freq: {
+      name: "Pearson correlation r + 95% CI",
+      desc: "Measures linear association; assumes bivariate normality for inference.",
+      code: "scipy.stats.pearsonr(x, y)\n# R: cor.test(x, y)",
+      why: "Standard, well-understood; the CI matters more than the p."
+    },
+    bayes: {
+      name: "Bayesian correlation with credible interval",
+      desc: "Returns the full posterior over r.",
+      code: "# R: BayesFactor::correlationBF or brms\nbrm(mvbind(x, y) ~ 1, data = df, family = gaussian())",
+      why: "Honest uncertainty about r, especially valuable at small N where r confidence intervals are huge."
+    },
+    pitfalls: [
+      "A 'significant' correlation at n=10 can correspond to r in [0.1, 0.9] — useless precision-wise. Always report the CI.",
+      "Outliers can drag r dramatically. Robust correlations (Spearman, or %bend) are worth running side-by-side."
+    ],
+    neuro: "cFos⁺ cell count vs behavior score, running-wheel distance vs body weight, electrophysiology biomarker vs symptom severity, % stained area vs cognitive measure. Plot the scatter; the test is secondary. If you have multiple measures per animal contributing to both X and Y, the simple Pearson is wrong — use a mixed-effects regression instead."
+  },
+  leaf_spearman: {
+    type: "result",
+    title: "Monotonic association",
+    freq: {
+      name: "Spearman's ρ (or Kendall's τ)",
+      desc: "Rank-based association; doesn't assume linearity.",
+      code: "scipy.stats.spearmanr(x, y)\n# R: cor.test(x, y, method = 'spearman')",
+      why: "Robust to outliers and to monotonic-but-curvy relationships."
+    },
+    bayes: {
+      name: "Bayesian rank correlation",
+      desc: "Posterior over Spearman's ρ via rank-likelihood, or a Bayesian copula model.",
+      code: "# R: BayesFactor::correlationBF(rank(x), rank(y))",
+      why: "Honest uncertainty even at small N where rank-based p-values can be unstable."
+    },
+    pitfalls: [
+      "Tied ranks (common in scored data) reduce power.",
+      "Spearman is not the right tool for nonlinear-but-non-monotonic relationships."
+    ],
+    neuro: "Anxiety score (open-field thigmotaxis ranking) vs cortisol, lesion size vs behavioral deficit severity, neurological severity grade vs IHC marker. Whenever one variable is ordinal, default to Spearman."
+  },
+  leaf_nonlinear: {
+    type: "result",
+    title: "Nonlinear or threshold relationship",
+    freq: {
+      name: "Nonlinear least squares + AIC comparison",
+      desc: "Fit a parametric model (Hill, exponential, sigmoid) and compare to alternatives via AIC.",
+      code: "# Python: scipy.optimize.curve_fit\n# R: nls(y ~ Emax*x^n/(K^n + x^n), data = df, start = list(...))",
+      why: "Familiar machinery; CI on parameters via the asymptotic covariance matrix."
+    },
+    bayes: {
+      name: "Bayesian nonlinear regression in brms",
+      desc: "Fit the same nonlinear model with priors on each parameter and get posteriors over them.",
+      code: "# R: brms\nbrm(bf(y ~ Emax * x^n / (K^n + x^n), Emax + n + K ~ 1, nl = TRUE),\n    data = df,\n    prior = c(prior(normal(1, 0.5), nlpar='Emax'),\n              prior(normal(2, 1),  nlpar='n'),\n              prior(normal(1, 1),  nlpar='K')))",
+      why: "Priors regularize identifiability (often a problem in dose-response models with few doses), and you get credible intervals on parameters."
+    },
+    pitfalls: [
+      "Nonlinear least squares can converge to local minima — try multiple starting values.",
+      "With few doses, parameters like the Hill coefficient n are poorly identified; priors help."
+    ],
+    neuro: "Dose-response curves, sigmoid learning curves, exponential decay of behavior."
+  },
+  leaf_simple_reg: {
+    type: "result",
+    title: "Simple linear regression",
+    freq: {
+      name: "OLS linear regression",
+      desc: "Estimate slope and intercept with their standard errors.",
+      code: "import statsmodels.formula.api as smf\nsmf.ols('y ~ x', data=df).fit().summary()\n# R: lm(y ~ x, data=df)",
+      why: "Standard. Residual diagnostics are essential."
+    },
+    bayes: {
+      name: "Bayesian linear regression",
+      desc: "Posteriors over slope, intercept, and residual SD.",
+      code: "# R: brms\nbrm(y ~ x, data=df, family=gaussian())",
+      why: "Honest uncertainty + easy to extend to robust likelihoods or hierarchical structure."
+    },
+    pitfalls: [
+      "Check residuals — heteroscedasticity and outliers bias inference.",
+      "Don't extrapolate beyond the observed range of x."
+    ],
+    neuro: "Body weight vs behavior, age vs measure, dose vs response (when linear over range tested)."
+  },
+  leaf_multi_reg: {
+    type: "result",
+    title: "Multiple regression — many predictors",
+    freq: {
+      name: "OLS with regularization (LASSO / Ridge / Elastic Net)",
+      desc: "Avoid stepwise selection. Use regularization for variable shrinkage and cross-validation for predictor selection.",
+      code: "# Python: sklearn.linear_model.LassoCV\n# R: glmnet::cv.glmnet(X, y)",
+      why: "Standard frequentist approach to high-dimensional or small-N regression."
+    },
+    bayes: {
+      name: "Bayesian regression with shrinkage priors",
+      desc: "Horseshoe / regularized horseshoe priors achieve similar shrinkage with calibrated uncertainty.",
+      code: "# R: brms\nbrm(y ~ x1 + x2 + x3 + x4 + x5, data = df,\n    prior = prior(horseshoe(df = 3), class = b))",
+      why: "Honest uncertainty over each coefficient even when many are near zero."
+    },
+    pitfalls: [
+      "Multicollinearity inflates SE — check VIFs.",
+      "p-values from naive multiple regression at small N are unreliable; cross-validation is more honest about predictive performance."
+    ],
+    neuro: "Multi-marker neuroimaging predictors, panels of behavioral measures."
+  },
+  leaf_long_linear: {
+    type: "result",
+    title: "Linear trajectory over time",
+    freq: {
+      name: "LMM with time as continuous predictor",
+      desc: "Random intercept (and slope) per animal, fixed effect of group × time.",
+      code: "# R: lme4\nlmer(y ~ group*time + (1+time|animal), data = df)",
+      why: "Models individual trajectories cleanly."
+    },
+    bayes: {
+      name: "Bayesian hierarchical LMM in brms",
+      desc: "Same model, MCMC fit, full posteriors.",
+      code: "# R: brms\nbrm(y ~ group*time + (1+time|animal), data = df)",
+      why: "More stable than lme4 at small N or with random slopes."
+    },
+    pitfalls: [
+      "Centering time (e.g. day 0 = baseline) makes the intercept interpretable.",
+      "If trajectories are clearly nonlinear, a linear slope is misleading."
+    ],
+    neuro: "Running-wheel distance per day across days (often roughly linear over 1–2 weeks), body weight in chronic drug studies, gradual recovery from injury. For wheel data specifically, consider log-transform — distances are right-skewed across days."
+  },
+  leaf_long_nonlinear: {
+    type: "result",
+    title: "Nonlinear trajectory (learning curves, sigmoid, plateau)",
+    freq: {
+      name: "GAMM (generalized additive mixed model) or nonlinear mixed-effects",
+      desc: "Smooth term over time + random subject intercepts.",
+      code: "# R: mgcv\ngamm(y ~ group + s(time, by = group), random = list(animal = ~1), data = df)\n# or nlme::nlme for parametric nonlinear",
+      why: "Captures shape flexibly without committing to a specific functional form."
+    },
+    bayes: {
+      name: "Bayesian GAMM in brms",
+      desc: "Smooths and random effects with priors and posterior intervals.",
+      code: "# R: brms\nbrm(y ~ group + s(time, by = group) + (1|animal), data = df)",
+      why: "Returns a credible band around the smooth, easy to compare groups visually."
+    },
+    pitfalls: [
+      "Splines can overfit at small N — limit basis dimension (k).",
+      "Nonlinear parametric models (e.g. asymptotic learning curve) are more interpretable when they fit."
+    ],
+    neuro: "Spatial learning in Morris water maze (sigmoidal escape-latency curves), lever-press acquisition (FR1→FR5 with characteristic ramp), progressive-ratio breakpoints across sessions, complex running-wheel learning (with bouts of skilled vs simple running). GAMMs are particularly nice for visualising group-specific curves with credible bands."
+  },
+  leaf_long_discrete: {
+    type: "result",
+    title: "Few discrete timepoints",
+    freq: {
+      name: "LMM with time as factor + planned contrasts",
+      desc: "Treat each timepoint as a level; compare to baseline.",
+      code: "# R: lmer(y ~ group*factor(time) + (1|animal), data = df)\n# emmeans for contrasts",
+      why: "More flexible than RM-ANOVA; doesn't require sphericity."
+    },
+    bayes: {
+      name: "Bayesian hierarchical with factor for time",
+      desc: "Posteriors over each timepoint contrast.",
+      code: "# R: brms\nbrm(y ~ group*factor(time) + (1|animal), data = df)",
+      why: "Cleaner multiple-comparisons handling via joint posterior."
+    },
+    pitfalls: [
+      "Repeated-measures ANOVA still appears in papers but is dominated by LMMs in nearly every case.",
+      "If a subject is missing one timepoint, RM-ANOVA drops them entirely; LMMs use what's there."
+    ],
+    neuro: "Pre/mid/post drug designs, open-field re-tests across weeks, IHC at fixed timepoints post-lesion. Counterbalance test order where possible to avoid confounding habituation with time."
+  },
+  leaf_count_simple: {
+    type: "result",
+    title: "Counts — one count per animal",
+    freq: {
+      name: "Poisson / Negative binomial / ZI-NegBin GLM (matching your dispersion choice above)",
+      desc: "Single count per animal with a log link. Use Poisson only when var ≈ mean; NegBin when overdispersed; ZINB when there's a structural zero process.",
+      code: "# R:\nglm(count ~ group, data = df, family = poisson)              # Poisson\nMASS::glm.nb(count ~ group, data = df)                         # NegBin\npscl::zeroinfl(count ~ group | group, data = df, dist='negbin')# ZINB",
+      why: "Right-scale modelling of counts. The Wald/LRT on the group coefficient gives a rate-ratio inference."
+    },
+    bayes: {
+      name: "Bayesian count GLM in brms",
+      desc: "Same families with weakly informative priors and full posteriors over rate ratios.",
+      code: "# R: brms\nbrm(count ~ group, data = df, family = poisson())               # Poisson\nbrm(count ~ group, data = df, family = negbinomial())            # NegBin\nbrm(bf(count ~ group, zi ~ group), data = df,\n    family = zero_inflated_negbinomial())                        # ZINB",
+      why: "Returns posteriors over the rate ratio (exp(b)), much more interpretable than 'p < 0.05' on a log-linear coefficient."
+    },
+    pitfalls: [
+      "If you chose Poisson, verify with a dispersion check (Pearson χ²/df). Real biology rarely sits at exactly 1.",
+      "Quasi-Poisson is fine for inference but lacks a true likelihood — can't be compared via AIC or used in brms."
+    ],
+    neuro: "Total # lever presses in a 1-hour session, total # rears in open field, # bouts of grooming. If exposures (session length, area observed) differ across animals, jump back and pick the 'different exposures' branch."
+  },
+  leaf_count_glmm: {
+    type: "result",
+    title: "Counts — multiple counts per animal (IHC, multi-session)",
+    freq: {
+      name: "Generalized linear mixed model (Poisson / NegBin / ZINB GLMM)",
+      desc: "Count outcome with log link AND random intercept per animal. The biological replicate is the animal; the random effect tells the model that sections within an animal are correlated.",
+      code: "# R: glmmTMB (handles all three families + zero-inflation)\nlibrary(glmmTMB)\nglmmTMB(count ~ group + (1|animal), data = df, family = poisson)\nglmmTMB(count ~ group + (1|animal), data = df, family = nbinom2)\nglmmTMB(count ~ group + (1|animal), ziformula = ~group,\n        data = df, family = nbinom2)",
+      why: "Standard frequentist tool for IHC-style nested counts. lme4::glmer also works for Poisson/Binomial but doesn't natively do NegBin or ZI."
+    },
+    bayes: {
+      name: "Bayesian hierarchical count model in brms",
+      desc: "Same structure in Stan. More reliable convergence at the small N typical in IHC (4–8 animals/group).",
+      code: "# R: brms\nbrm(count ~ group + (1|animal), data = df, family = negbinomial(),\n    prior = c(prior(normal(0,1), class=b),\n              prior(student_t(3,0,1), class=sd)))\n# For region-specific effects:\nbrm(count ~ group*region + (1|animal/region),\n    data = df, family = negbinomial())",
+      why: "Posteriors over rate ratios per region; partial-pooling stabilises noisy region estimates; trivially handles section-level offsets (e.g. log(area))."
+    },
+    pitfalls: [
+      "Pseudoreplication: the #1 IHC stats error. n = number of animals, NOT number of sections. A 'significant' result driven by 5 sections from 2 animals is meaningless.",
+      "Pooling sections to per-animal means works but discards within-animal variability; a GLMM uses all the information and gives proper SEs.",
+      "If sections were sampled systematically (every 6th, stereology), you don't lose much by averaging; if sampled opportunistically, the GLMM matters more.",
+      "Watch for region × animal designs where each animal contributes counts in multiple regions — use (1|animal) with region as a fixed effect, not (region|animal)."
+    ],
+    neuro: "Canonical IHC setup: 4–6 coronal sections per animal × 6–10 animals/group × counts in one or more brain regions. Always plot per-section points coloured by animal; reviewers and you will both spot one-animal-drives-everything patterns immediately."
+  },
+  leaf_count_offset: {
+    type: "result",
+    title: "Counts with different exposures (areas, durations)",
+    freq: {
+      name: "Poisson / NegBin GLM(M) with an offset term",
+      desc: "Add log(exposure) as an offset so the model estimates rates (per unit area or time) rather than raw counts.",
+      code: "# R: cells per unit area\nglmmTMB(count ~ group + offset(log(area_mm2)) + (1|animal),\n        data = df, family = nbinom2)\n# Python: statsmodels GLM offset via 'offset=' kwarg",
+      why: "Without the offset, an animal with a thicker section (more cells observable) looks like it has higher density. The offset corrects for this exactly."
+    },
+    bayes: {
+      name: "Bayesian count GLMM with offset in brms",
+      desc: "Same structure; offset is a fixed term with coefficient 1.",
+      code: "# R: brms\nbrm(count ~ group + offset(log(area_mm2)) + (1|animal),\n    data = df, family = negbinomial())",
+      why: "Rate ratios are directly interpretable; offset handles unequal exposures cleanly."
+    },
+    pitfalls: [
+      "Forgetting the offset is a silent bug — the analysis runs but the answer is wrong if exposures vary.",
+      "Don't model cells/mm² as a continuous outcome with linear regression; you lose the count-distribution information and the offset trick."
+    ],
+    neuro: "IHC where section areas differ (rostrocaudal extent varies), behavioral counts where session length varies, recordings with variable durations. Stereological cell counts are designed around this issue — if you're using a stereology pipeline, area/volume offsets are baked in."
+  },
+  leaf_proportion_simple: {
+    type: "result",
+    title: "Bounded proportion — one per animal",
+    freq: {
+      name: "Beta regression (or logit-transform + linear model)",
+      desc: "Beta regression on the proportion directly. For values strictly inside (0,1).",
+      code: "# R: betareg or glmmTMB with family=beta_family()\nlibrary(betareg)\nbetareg(prop ~ group, data = df)\n# Logit-transform alternative:\nlm(qlogis(prop) ~ group, data = df)",
+      why: "Respects bounded support; gives effect on the log-odds scale, which is invariant to where you sit on the 0–100 axis (a 10→20% shift and a 70→80% shift are not the same on the linear scale)."
+    },
+    bayes: {
+      name: "Bayesian beta regression in brms",
+      desc: "Same model with priors and credible intervals on log-odds effects.",
+      code: "# R: brms\nbrm(prop ~ group, data = df, family = Beta())",
+      why: "Effect sizes are on the log-odds scale and easy to back-transform; honest uncertainty at small N."
+    },
+    pitfalls: [
+      "Exact 0s or 1s break beta regression — add a tiny constant ((y*(n-1)+0.5)/n) or use zero/one-inflated beta.",
+      "A t-test on % values can drastically underestimate effects near the ceiling/floor.",
+      "Don't analyse percentage data after an arcsine-sqrt transform unless your reviewers insist — beta regression is the modern replacement."
+    ],
+    neuro: "% time in open-field center per animal (single session), overall % freezing across the test, % correct lever-press trials, fraction of cFos⁺ cells co-expressing a marker (single brain summary)."
+  },
+  leaf_proportion_glmm: {
+    type: "result",
+    title: "Bounded proportion — nested (multi-section, multi-session, multi-region)",
+    freq: {
+      name: "Beta GLMM with random animal effect",
+      desc: "Beta family with random intercept per animal. Handles the standard IHC % stained area design directly.",
+      code: "# R: glmmTMB\nglmmTMB(prop ~ group + (1|animal), data = df, family = beta_family())\n# If exact 0s/1s present:\nglmmTMB(prop ~ group + (1|animal), data = df,\n        family = ordbeta_family())   # ordered-beta",
+      why: "Correct likelihood for bounded outcomes plus correct accounting for animal-level clustering."
+    },
+    bayes: {
+      name: "Bayesian beta GLMM in brms",
+      desc: "Hierarchical beta regression. Stable at the small N typical in IHC.",
+      code: "# R: brms\nbrm(prop ~ group + (1|animal), data = df, family = Beta())\n# Zero-one inflated:\nbrm(bf(prop ~ group, zoi ~ group, coi ~ group) + (1|animal),\n    data = df, family = zero_one_inflated_beta())",
+      why: "Posterior over the log-odds group effect, plus credible intervals at any chosen quantile of the response."
+    },
+    pitfalls: [
+      "Pseudoreplication again — sections within an animal are NOT independent. n = animals.",
+      "If you compute % from a count and a denominator (positive pixels / total pixels), consider modelling the count directly with a binomial GLMM instead of the proportion — more efficient and naturally handles 0/1 boundaries.",
+      "Image quantification thresholds chosen post-hoc can bias % stained area. Lock thresholds before analysis."
+    ],
+    neuro: "% positive stained area across 4–6 sections per animal — the bread-and-butter IHC analysis. Also: layer-specific % co-localization, region-by-region % activated cells, % time in zone across multiple test sessions."
+  },
+  leaf_proportion_extreme: {
+    type: "result",
+    title: "Bounded proportion — near floor or ceiling",
+    freq: {
+      name: "Zero-inflated / one-inflated beta, or ordered-beta",
+      desc: "Beta regression alone can't model exact 0s or 1s. Use a zero-and-one-inflated beta or the newer ordered-beta family.",
+      code: "# R: glmmTMB\nglmmTMB(prop ~ group + (1|animal), data = df,\n        family = ordbeta_family())  # handles 0, (0,1), and 1",
+      why: "Models the boundary process and the continuous interior simultaneously."
+    },
+    bayes: {
+      name: "Bayesian zero-one-inflated beta in brms",
+      desc: "Three submodels: probability of being at 0, probability of being at 1, beta distribution for the interior.",
+      code: "# R: brms\nbrm(bf(prop ~ group, zoi ~ group, coi ~ group),\n    data = df, family = zero_one_inflated_beta())",
+      why: "Cleanly separates 'did the animal hit the ceiling?' from 'among non-ceiling animals, how much did it increase?'."
+    },
+    pitfalls: [
+      "Ceiling/floor effects make differences look smaller than they are on the raw scale and larger on the log-odds scale — choose your reporting scale consciously.",
+      "If almost everyone hits the ceiling, the experiment may not have enough dynamic range to detect group differences regardless of model.",
+      "Consider whether ceiling/floor is a measurement artefact (saturation, thresholding) or a biological reality."
+    ],
+    neuro: "Strong fear conditioning where most mice freeze >90% of the test; sparse cell counts where most ROIs are at 0; behavioral tasks where one group reliably reaches ceiling performance."
+  },
+  leaf_survival: {
+    type: "result",
+    title: "Time-to-event with censoring",
+    freq: {
+      name: "Kaplan–Meier + log-rank test; Cox PH for covariates",
+      desc: "Standard survival analysis machinery.",
+      code: "# R: survival::survfit; survdiff; coxph\nlibrary(survival)\nsurvdiff(Surv(time, event) ~ group, data = df)\ncoxph(Surv(time, event) ~ group + covariate, data = df)",
+      why: "Handles censoring correctly. Log-rank for two-group comparison; Cox for adjusted hazard ratios."
+    },
+    bayes: {
+      name: "Bayesian survival model (Weibull / lognormal)",
+      desc: "Parametric survival in brms; can also do Bayesian Cox.",
+      code: "# R: brms\nbrm(time | cens(censored) ~ group, data = df, family = weibull())",
+      why: "Posteriors over the hazard ratio and over survival probabilities at specific timepoints."
+    },
+    pitfalls: [
+      "Cox PH assumes proportional hazards — check with Schoenfeld residuals.",
+      "Small N: hazard ratio CIs are very wide; Bayesian priors help stabilize."
+    ],
+    neuro: "Latency-to-criterion with timeouts, survival in disease models, time to first response."
+  },
+  leaf_latency: {
+    type: "result",
+    title: "Latency / time-to-event, no censoring",
+    freq: {
+      name: "Log-transform + t-test / Welch, or rank-based",
+      desc: "Latencies are usually right-skewed; transform or rank.",
+      code: "# log-transform + Welch's\nscipy.stats.ttest_ind(np.log(a), np.log(b), equal_var=False)\n# Or Mann–Whitney on raw",
+      why: "Either approach respects the skew."
+    },
+    bayes: {
+      name: "Bayesian lognormal or Gamma regression",
+      desc: "Models the skew directly in the likelihood.",
+      code: "# R: brms\nbrm(time ~ group, data = df, family = lognormal())",
+      why: "More interpretable than log-then-t; effect is on the multiplicative scale."
+    },
+    pitfalls: [
+      "Reporting 'mean latency ± SD' for skewed data is uninformative — use median + IQR or geometric mean."
+    ],
+    neuro: "Latency to first lever press, escape latency in Morris water maze, latency to first entry into open-field center, time to first complex running-wheel bout, reaction times in 2AFC."
+  },
+  describe_leaf: {
+    type: "result",
+    title: "Just describe the data",
+    freq: {
+      name: "Descriptive statistics + visualizations",
+      desc: "Means/medians, dispersion, distributional plots. No inference.",
+      code: "# Python: df.describe(); df.groupby('group').agg(['mean','sem','median','iqr'])\n# Plot: sns.swarmplot, sns.boxenplot, seaborn pairplot\n# R: psych::describe(); skimr::skim()",
+      why: "Always do this first, before any inferential test."
+    },
+    bayes: {
+      name: "Posterior over summary statistics with weakly informative priors",
+      desc: "Even 'description' has uncertainty when N is small — report a credible interval on the mean.",
+      code: "# R: brms\nbrm(y ~ 1, data = df, family = gaussian())\n# or per-group: brm(y ~ 0 + group, data = df)",
+      why: "Honest uncertainty about group means; valuable to report alongside any visualization."
+    },
+    pitfalls: [
+      "Bar plot of means hides distribution — show every data point.",
+      "SEM vs SD vs 95% CI: pick one consciously. SEM looks tighter but reflects sample size, not biological variability."
+    ],
+    neuro: "ALWAYS do this step before any test. Many statistical surprises disappear once you plot the data per-animal."
+  }
+};
+
+/* ---------- Glossary ---------- */
+const GLOSSARY = {
+  "t-test": { aliases: ["t test","Student's t","Student t-test"], def: "Compares means of two groups using the t-distribution. Assumes residuals are roughly normal; sensitive to outliers. Default form (Student's) also assumes equal variances." },
+  "Welch's t-test": { aliases: ["Welch t","Welch","Welch's"], def: "Variant of the t-test that does NOT assume equal variances between groups. Generally the safer default in neurobiology where genotype/lesion groups often have different spreads." },
+  "ANOVA": { aliases: ["analysis of variance","one-way ANOVA","two-way ANOVA"], def: "Analysis of Variance — generalizes the t-test to 3+ groups. Tests whether at least one group mean differs. Post-hoc tests are needed to identify which." },
+  "Mann-Whitney U": { aliases: ["Mann–Whitney","Wilcoxon rank-sum","rank-sum"], def: "Rank-based two-group test. Does not assume normality. Strictly tests stochastic dominance — Pr(A > B) — NOT medians, despite common claims." },
+  "Wilcoxon signed-rank": { aliases: ["signed-rank","Wilcoxon paired"], def: "Rank-based paired test. Robust analogue of the paired t-test on within-subject differences." },
+  "Kruskal-Wallis": { aliases: ["Kruskal–Wallis","KW","KW test"], def: "Rank-based generalisation of Mann–Whitney to 3+ groups. Like KW, not strictly a test of medians." },
+  "LMM": { aliases: ["linear mixed-effects model","mixed-effects model","linear mixed model"], def: "Regression combining fixed effects (group, drug) with random effects (animal, session) to account for correlated observations. Standard tool for cells-within-animals, repeated measures." },
+  "GLM": { aliases: ["generalized linear model","generalised linear model"], def: "Regression that allows non-normal outcomes — binary, count, bounded — via a link function (e.g. logit, log)." },
+  "GLMM": { aliases: ["generalized linear mixed model","generalised linear mixed model"], def: "A GLM with random effects. Handles non-normal outcomes (counts, binary) AND clustered data (sections within animals)." },
+  "GAMM": { aliases: ["generalized additive mixed model","GAM"], def: "Mixed model with smooth (spline) terms — useful for nonlinear time courses while keeping random animal effects." },
+  "Poisson": { aliases: ["Poisson distribution","Poisson GLM"], def: "Standard model for counts when variance ≈ mean. Almost no real biological count data is truly Poisson." },
+  "Negative binomial": { aliases: ["NegBin","NB","negative binomial GLM","nbinom"], def: "Count distribution with an extra dispersion parameter. Use when var > mean (the norm for IHC and firing-rate data across animals)." },
+  "zero-inflated": { aliases: ["zero inflation","ZINB","ZIP","zero-inflated NegBin"], def: "Two-process model for counts with more zeros than the base distribution predicts. One process governs whether the count is structurally zero; another governs the count if it's not." },
+  "Beta regression": { aliases: ["beta family","beta GLM","beta GLMM"], def: "Regression for outcomes in (0,1) — proportions, fractions. The modern replacement for arcsine-sqrt transforms of percentage data." },
+  "Cohen's d": { aliases: ["d","standardized effect size","standardised effect size"], def: "Standardised effect size for two group means: (mean1 − mean2) / pooled SD. Rules of thumb: 0.2 small, 0.5 medium, 0.8 large." },
+  "Cohen's f": { aliases: ["f","ANOVA effect size"], def: "Standardised effect size for ANOVA. Rules of thumb: 0.10 small, 0.25 medium, 0.40 large." },
+  "Cohen's h": { aliases: ["h"], def: "Standardised effect size for the difference between two proportions, using arcsine-sqrt transformation." },
+  "effect size": { def: "Magnitude of an effect on a standardised or biologically interpretable scale. The thing you should report alongside or instead of the p-value." },
+  "power": { aliases: ["statistical power"], def: "Probability of detecting a true effect of a given size at a given α and N. Conventionally aimed at 0.80. At typical neurobio N=8/group, power for realistic effects is often <0.30." },
+  "alpha": { aliases: ["α","Type I error","significance level"], def: "Probability of rejecting the null hypothesis when it's actually true. Conventionally 0.05." },
+  "beta error": { aliases: ["β","Type II error"], def: "Probability of failing to detect a true effect. Power = 1 − β." },
+  "p-value": { aliases: ["p value","p"], def: "Probability of observing data at least as extreme as the actual data, IF the null hypothesis were true. NOT the probability that the null is true." },
+  "confidence interval": { aliases: ["CI","95% CI"], def: "Frequentist interval: across repeated experiments, X% of intervals would contain the true parameter. NOT 'X% probability the parameter is in this range' — that's a credible interval." },
+  "credible interval": { aliases: ["CrI","posterior interval","HPD","HDI","highest posterior density"], def: "Bayesian interval containing the parameter with stated posterior probability. Direct probabilistic interpretation, unlike a CI." },
+  "posterior": { aliases: ["posterior distribution"], def: "Updated belief about a parameter after seeing the data. The output of Bayesian inference." },
+  "prior": { aliases: ["prior distribution"], def: "Belief about a parameter before seeing the data. Priors can be weakly informative (regularizing) or informative (encoding domain knowledge)." },
+  "likelihood": { def: "How well the model would have generated the observed data, viewed as a function of the parameters." },
+  "Bayes factor": { aliases: ["BF","BF10","BF01"], def: "Ratio of evidence for two models given the data. Can quantify evidence for the null, unlike a p-value." },
+  "MCMC": { aliases: ["Markov chain Monte Carlo","Hamiltonian Monte Carlo","HMC","NUTS"], def: "Sampling algorithm used to draw from posteriors when they have no closed form. Underlies brms, Stan, PyMC." },
+  "brms": { def: "R package for Bayesian multilevel models, built on Stan. Covers Gaussian, t, binomial, Poisson, NegBin, ordinal, beta, survival, and more, with mixed-effects." },
+  "lme4": { def: "R package for frequentist linear and generalised linear mixed models. Workhorse for LMMs and GLMMs in biology." },
+  "glmmTMB": { def: "R package for flexible GLMMs including NegBin, beta, ordered-beta, zero-inflated families. Often the right tool for IHC and behavioral count/proportion data." },
+  "fixed effect": { def: "A parameter assumed constant across the population — e.g. the average group difference." },
+  "random effect": { aliases: ["random intercept","random slope"], def: "A parameter that varies across units (animals, sessions). Random intercept = each animal has its own baseline; random slope = each animal has its own response to a predictor." },
+  "pseudoreplication": { def: "Treating non-independent observations (cells within an animal, trials within a session) as independent. Inflates effective N and false-positive rate. The single most common stats error in neuroscience." },
+  "sphericity": { def: "Equality of variances of the differences between all pairs of repeated-measures levels. Required by RM-ANOVA. Almost always violated in real neural/behavioral time series." },
+  "homoscedasticity": { aliases: ["homogeneity of variance","equal variance"], def: "Equal variances across groups. Assumption of Student's t and standard ANOVA. Often violated when one group is a knockout, lesion, or disease state." },
+  "heteroscedasticity": { aliases: ["unequal variance"], def: "Unequal variances across groups. The norm in neurobio." },
+  "normality": { aliases: ["Gaussian","normal distribution","Shapiro-Wilk"], def: "Assumption that residuals follow a normal distribution. Matters most for small N; large-N tests are robust to mild departures." },
+  "censoring": { aliases: ["censored","right-censored"], def: "Event time partially observed — e.g. animal didn't reach the event before the session ended. Survival analysis is designed to handle this." },
+  "hazard ratio": { aliases: ["HR"], def: "Ratio of instantaneous event rates between groups. Output of Cox proportional hazards regression." },
+  "Cox proportional hazards": { aliases: ["Cox PH","Cox model"], def: "Semi-parametric survival regression. Assumes the ratio of hazards between groups stays constant over time." },
+  "Pearson correlation": { aliases: ["Pearson r","r"], def: "Linear correlation coefficient. Assumes bivariate normality for inference. Sensitive to outliers." },
+  "Spearman correlation": { aliases: ["Spearman ρ","Spearman rho","ρ"], def: "Rank-based correlation. Robust to outliers and monotonic non-linearity." },
+  "BEST": { aliases: ["Bayesian Estimation"], def: "'Bayesian Estimation Supersedes the t-Test' (Kruschke). Robust Bayesian alternative to the t-test using a Student-t likelihood and weakly informative priors." },
+  "horseshoe prior": { aliases: ["horseshoe","regularized horseshoe"], def: "Shrinkage prior for high-dimensional regression. Aggressively shrinks coefficients toward zero while letting truly nonzero ones escape." },
+  "overdispersion": { def: "Variance exceeds what the assumed distribution (Poisson, binomial) predicts. Standard in biological count data — switch to NegBin or beta-binomial." },
+  "offset": { def: "A fixed-coefficient (=1) term in a count GLM. Used to convert counts to rates when exposure (area, time, cell number) differs across observations: log(exposure) goes in as an offset." },
+  "logit": { aliases: ["log-odds","logistic link"], def: "log(p/(1−p)). Standard link function for binary outcomes; transforms (0,1) to (−∞,∞)." },
+  "log link": { def: "Standard link function for Poisson/NegBin count models. Means modelled on the log scale." },
+  "variance": { aliases: ["σ²"], def: "Average squared deviation from the mean. Spread of the data, in squared units." },
+  "standard deviation": { aliases: ["SD","σ"], def: "Square root of variance. Spread of the data, in the original units." },
+  "standard error": { aliases: ["SE","SEM","standard error of the mean"], def: "SD divided by √n. The precision of the mean estimate. Always smaller than SD; using SEM in figures hides biological variability — controversial." },
+  "IQR": { aliases: ["interquartile range"], def: "Middle 50% of the data: 75th percentile minus 25th percentile. Robust analog of SD." },
+  "hierarchical model": { aliases: ["multilevel model","partial pooling","shrinkage"], def: "Model with parameters that vary by group (e.g. animal-specific intercepts) and themselves have a distribution. Estimates are 'shrunk' toward the overall mean, stabilising noisy per-group estimates." },
+  "TOST": { aliases: ["equivalence test","two one-sided tests"], def: "Frequentist test for showing an effect is within a pre-defined null region. The right way to 'prove' there's no meaningful difference, instead of misinterpreting a non-significant p." },
+  "ROPE": { aliases: ["region of practical equivalence"], def: "Bayesian counterpart of TOST. Define an interval of effect sizes you'd consider equivalent to zero; check what posterior mass falls inside it." },
+  "permutation test": { aliases: ["randomization test"], def: "Test computed by shuffling group labels many times and recomputing the statistic. Distribution-free; great for small N." },
+  "FDR": { aliases: ["false discovery rate","Benjamini-Hochberg","BH"], def: "Expected proportion of false positives among called positives. Less conservative than FWER for multiple testing." },
+  "FWER": { aliases: ["family-wise error rate","Bonferroni"], def: "Probability of at least one false positive across the family of tests. Bonferroni: multiply each p by m comparisons." },
+  "cumulative-link model": { aliases: ["ordinal regression","ordered logit","proportional odds"], def: "Regression for ordinal outcomes (severity scores, Likert). Models the cumulative probability of being in or below each category." },
+  "Schoenfeld residuals": { def: "Diagnostic for the proportional-hazards assumption in Cox regression. A trend in residuals over time signals violation." },
+  "exposure": { aliases: ["offset variable"], def: "The denominator of a rate — observation duration, area imaged, number of trials. Modelled as an offset in count GLMs." },
+  "dynamite plot": { aliases: ["bar plot"], def: "Bar graph of means with SEM whiskers. Hides the distribution; obscures small N; reviewers increasingly demand individual points instead." }
+};
+
+// Build a search-ready term list: { regex, canonical }
+const GLOSS_TERMS = (() => {
+  const items = [];
+  for (const k of Object.keys(GLOSSARY)) {
+    const all = [k, ...(GLOSSARY[k].aliases || [])];
+    for (const term of all) items.push({ canonical: k, term });
+  }
+  // Longer terms first so they take precedence over substrings
+  items.sort((a, b) => b.term.length - a.term.length);
+  // Build a single regex with word-ish boundaries
+  const escaped = items.map(x => x.term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const re = new RegExp(`(?<!\\w)(${escaped.join('|')})(?!\\w)`, 'g');
+  return { items, re };
+})();
+
+function markupGlossary(html) {
+  // Apply only to text outside existing tags. Simple approach: split on tags.
+  if (!html) return html;
+  const parts = html.split(/(<[^>]+>)/);
+  return parts.map(part => {
+    if (part.startsWith('<')) return part;
+    return part.replace(GLOSS_TERMS.re, (match) => {
+      // Find canonical key (case-insensitive)
+      const hit = GLOSS_TERMS.items.find(x => x.term.toLowerCase() === match.toLowerCase());
+      const key = hit ? hit.canonical : match;
+      return `<span class="gloss" data-term="${key}">${match}</span>`;
+    });
+  }).join('');
+}
+
+/* ---------- Boomer Warnings ---------- */
+const BOOMER = {
+  leaf_2group_student: {
+    items: [
+      "<b>Defaulting to Student's t for everything.</b> Equal-variance assumption is violated more often than not in genotype/lesion studies. Welch's is the safer default — and was the default in R for a reason.",
+      "<b>Reporting only 'p < 0.05'</b> without effect size, CI, or every data point on the plot.",
+      "<b>The dynamite plot</b> — bar of mean ± SEM with no individual animals shown. Show every mouse. Always.",
+      "<b>Treating a non-significant p as proof of no difference.</b> Use TOST or a Bayes factor if 'no effect' is the claim."
+    ]
+  },
+  leaf_2group_welch: {
+    items: [
+      "<b>Skipping variance and normality checks</b> 'because Welch handles it'. Welch handles unequal variance, not non-normality at small N.",
+      "<b>SEM error bars instead of SD or 95% CI.</b> SEM shrinks with N, making the figure look more convincing than the data warrant.",
+      "<b>Reporting t(df) = X, p = Y and stopping</b> — without showing the mean difference and its 95% CI."
+    ]
+  },
+  leaf_2group_nonparam: {
+    items: [
+      "<b>Calling Mann–Whitney a 'test of medians'.</b> It isn't — it tests stochastic dominance.",
+      "<b>Reporting 'median ± SEM'.</b> SEM is defined for the mean, not the median. Use IQR or bootstrapped CI.",
+      "<b>Skipping the plot.</b> Strip/swarm plots are non-negotiable for rank-based comparisons; the test itself is uninformative without seeing the distributions."
+    ]
+  },
+  leaf_2group_smalln: {
+    items: [
+      "<b>Running a t-test on n=4/group and reporting p=0.04 as a finding.</b> One outlier can flip it. Replicate before publishing.",
+      "<b>Pre-screening with Shapiro–Wilk at n=5.</b> The test has near-zero power at this N — 'normality not rejected' tells you nothing.",
+      "<b>Power-calculation theatre.</b> Doing the calc post hoc with the observed effect size is meaningless. Power calcs only make sense a priori with a target effect size."
+    ]
+  },
+  leaf_paired_t: {
+    items: [
+      "<b>Pairing animals arbitrarily across groups</b> to 'increase power'. Pairing must be meaningful (same animal, matched controls).",
+      "<b>Forgetting order/carryover effects.</b> Pre–post drug without counterbalancing confounds time-of-day, habituation, and the drug."
+    ]
+  },
+  leaf_wilcoxon: {
+    items: [
+      "<b>Reporting V or W with no effect-size measure.</b> Report r = Z/√N or matched-pairs rank-biserial.",
+      "<b>Using Wilcoxon at n=4</b> and concluding from p > 0.05. The test cannot reach α=0.05 in some n=4 configurations — non-significance is structural, not biological."
+    ]
+  },
+  leaf_anova: {
+    items: [
+      "<b>Reporting only the omnibus F.</b> Almost always, the scientific question is in the contrasts, not 'is at least one group different'.",
+      "<b>Running ANOVA, then doing uncorrected pairwise t-tests.</b> If you need pairs, use Tukey/Dunnett or pre-specify contrasts.",
+      "<b>'Non-significant ANOVA, so we stopped looking.'</b> A non-significant omnibus does not preclude meaningful planned contrasts."
+    ]
+  },
+  leaf_anova_smalln: {
+    items: [
+      "<b>Multi-dose ANOVA at n=6/group</b> with multiple post-hocs and no correction. The most-different pair will look significant by chance alone.",
+      "<b>Reporting only the 'winning' dose.</b> Selection bias inflates every effect size you report."
+    ]
+  },
+  leaf_kw: {
+    items: [
+      "<b>'Kruskal–Wallis tests differences in medians.'</b> It doesn't.",
+      "<b>Stopping at the omnibus.</b> Like ANOVA, the scientific answer is in the post-hocs (Dunn's), and they need correction."
+    ]
+  },
+  leaf_lmm: {
+    items: [
+      "<b>Treating cells/trials as independent observations.</b> 'N = 240 cells from 4 mice' is N = 4. This is the single most common neurobio stats error.",
+      "<b>Averaging cells to one number per animal then t-testing.</b> Works for a clean balanced design, but throws away within-animal variance and ignores cells with uneven contribution.",
+      "<b>Reporting a per-cell p-value as if it generalises.</b> A finding in 240 cells from 4 mice generalises to those 4 mice, not to a population."
+    ]
+  },
+  leaf_lmm_deep: {
+    items: [
+      "<b>Ignoring session-level clustering.</b> Counting each session as independent inflates N for the same reason as ignoring animal clustering.",
+      "<b>Forcing simple random effects because lme4 won't converge</b> — without acknowledging the model is misspecified. Bayesian fits often converge where lme4 doesn't."
+    ]
+  },
+  leaf_lmm_long: {
+    items: [
+      "<b>RM-ANOVA on data with one missing timepoint per animal</b>, discarding those animals entirely. LMMs use what's there.",
+      "<b>Ignoring individual trajectories.</b> Reporting group × time interaction without showing per-animal lines hides whether the average is a mirage."
+    ]
+  },
+  leaf_factorial: {
+    items: [
+      "<b>Inferring 'no interaction' from a non-significant interaction term</b> at small N. Interactions need ~4× the N of main effects to power.",
+      "<b>Removing 'non-significant' main effects to test the interaction.</b> That's data dredging."
+    ]
+  },
+  leaf_factorial_interaction: {
+    items: [
+      "<b>Underpowered interaction studies presented as definitive.</b> Most 'drug × genotype' claims are not adequately powered for the interaction.",
+      "<b>Reporting only the interaction p-value without the contrast pattern.</b> An interaction can be 'significant' for many uninteresting reasons."
+    ]
+  },
+  leaf_ordinal_2: {
+    items: [
+      "<b>Averaging a 0–5 score and t-testing the means.</b> Treats the scale as interval when it isn't; can both inflate and deflate effects depending on category spacing.",
+      "<b>Ignoring floor/ceiling.</b> If most animals score 0 or 5, mean-based tests are deeply misleading."
+    ]
+  },
+  leaf_ordinal_many: {
+    items: [
+      "<b>Mean ± SEM bar plots of ordinal scores.</b> Use stacked bars of category counts or violin plots of jittered scores instead."
+    ]
+  },
+  leaf_binary_simple: {
+    items: [
+      "<b>Reporting odds ratios without CIs at small N.</b> ORs are extremely uncertain when n ≤ 10/group — the CI can span an order of magnitude.",
+      "<b>Pooling trials from one animal as if they were independent</b> to 'boost N'. If you have multiple trials per animal, you need a GLMM (see the trial-level branch)."
+    ]
+  },
+  leaf_binary_glmm: {
+    items: [
+      "<b>χ² on pooled trials across all animals.</b> Treats trials as independent; inflates Type I error dramatically.",
+      "<b>Reporting d′ or accuracy across animals without modelling animal-level variance.</b> Each animal is a draw from the population; their psychometric curves are not identical."
+    ]
+  },
+  leaf_pearson: {
+    items: [
+      "<b>Reporting r at small N without its CI.</b> r = 0.6 at n = 10 has a 95% CI of roughly [-0.05, 0.88]. That is not a finding.",
+      "<b>Inferring causation from correlation.</b> Still happens, still wrong.",
+      "<b>Pearson on rank data, ordinal data, or visibly nonlinear scatter.</b> Use Spearman or model the curve."
+    ]
+  },
+  leaf_spearman: {
+    items: [
+      "<b>Treating Spearman as a 'just-in-case' replacement</b> when Pearson doesn't reach significance. Choose the test based on the data structure, not the result."
+    ]
+  },
+  leaf_nonlinear: {
+    items: [
+      "<b>Fitting a Hill curve to four doses</b> and reporting EC50 with no CI on the Hill coefficient. With four doses you cannot identify all parameters.",
+      "<b>Reporting only R² for the fit.</b> R² can be high while the parameter estimates are nonsense."
+    ]
+  },
+  leaf_simple_reg: {
+    items: [
+      "<b>No residual plot.</b> Heteroscedasticity and influential points are invisible from a coefficient table.",
+      "<b>Extrapolating beyond the observed range of x.</b> Especially common with dose-response."
+    ]
+  },
+  leaf_multi_reg: {
+    items: [
+      "<b>Stepwise variable selection at small N.</b> Biased coefficients, anti-conservative p-values. Use LASSO, ridge, or Bayesian shrinkage.",
+      "<b>Reporting p-values from a model after data-driven predictor selection</b> without acknowledging the selection."
+    ]
+  },
+  leaf_long_linear: {
+    items: [
+      "<b>RM-ANOVA when LMM would do better.</b> The only reason RM-ANOVA persists is institutional inertia.",
+      "<b>Centering time at day 1</b> so the intercept means nothing — center at the comparison-of-interest baseline."
+    ]
+  },
+  leaf_long_nonlinear: {
+    items: [
+      "<b>Fitting a line to a sigmoidal learning curve</b> and reporting a 'group × time' effect. The line slope confounds asymptote and rate.",
+      "<b>Over-flexible splines on small N.</b> The model overfits and looks impressively snake-y; the CI is so wide it's meaningless."
+    ]
+  },
+  leaf_long_discrete: {
+    items: [
+      "<b>Multiple paired t-tests across timepoints</b> with no correction. Each test inflates Type I error.",
+      "<b>Dropping subjects with one missing visit</b> in RM-ANOVA. LMMs handle MAR missingness; ANOVAs throw the subject out entirely."
+    ]
+  },
+  leaf_count_simple: {
+    items: [
+      "<b>T-test on raw counts.</b> Counts aren't Gaussian; the variance scales with the mean.",
+      "<b>Reporting cells per region without telling readers the section area</b> or other exposure — comparisons across animals are ambiguous."
+    ]
+  },
+  leaf_count_glmm: {
+    items: [
+      "<b>Treating sections as the unit of analysis.</b> The biological replicate is the animal. 5 sections × 4 animals is N = 4, not N = 20.",
+      "<b>Averaging sections to one number per animal, then t-testing,</b> while reporting in the methods that '5 sections per animal were analyzed' — pick one approach.",
+      "<b>No section-level visualization.</b> Always show per-section dots coloured by animal so one-animal-drives-everything effects are visible."
+    ]
+  },
+  leaf_count_offset: {
+    items: [
+      "<b>Comparing raw counts when section thickness varied.</b> Thicker sections give more cells; the difference is not biology.",
+      "<b>Normalising by dividing counts by area</b> and then t-testing the resulting density. Loses the count likelihood; use offset() instead."
+    ]
+  },
+  leaf_proportion_simple: {
+    items: [
+      "<b>T-test on percentages near 0 or 100.</b> The bounded scale compresses effects; a 5→15% shift is not the same as a 50→60% shift, but the t-test treats them identically.",
+      "<b>Arcsine-square-root transform.</b> Reviewers of a certain vintage still ask for it. Beta regression is the modern answer.",
+      "<b>Ignoring the zero/one boundary.</b> If you have exact 0% or 100% values, beta regression breaks unless you use the inflated/ordered-beta variants."
+    ]
+  },
+  leaf_proportion_glmm: {
+    items: [
+      "<b>Pooling sections to a single per-animal % and t-testing.</b> Standard IHC sin: throws away within-animal variance and conflates sample size with replicate count.",
+      "<b>Reporting only mean % stained area in the figure</b> with no individual-section variability shown.",
+      "<b>Post-hoc threshold tuning</b> for the image quantification — lock the threshold before running the analysis."
+    ]
+  },
+  leaf_proportion_extreme: {
+    items: [
+      "<b>Concluding 'no effect' when the control group is at the ceiling.</b> No measurable difference is possible if the dependent variable can't move.",
+      "<b>Mean % freezing of 95% reported with SEM error bars that overlap 100%.</b> The bound makes that figure misleading."
+    ]
+  },
+  leaf_survival: {
+    items: [
+      "<b>Comparing mean latencies with a t-test when there's censoring.</b> Censored animals contribute their 'cut-off' time as if it were the real value, biasing both groups.",
+      "<b>Cox PH without checking proportional hazards.</b> The PH assumption is exactly what the test is built on; check Schoenfeld residuals."
+    ]
+  },
+  leaf_latency: {
+    items: [
+      "<b>Reporting 'mean latency ± SD' for visibly right-skewed data.</b> Use median + IQR, or model on the log/Weibull scale.",
+      "<b>T-test on raw latencies.</b> Almost guaranteed to be wrong for behavioral latencies."
+    ]
+  },
+  describe_leaf: {
+    items: [
+      "<b>The dynamite plot (bar of mean ± SEM).</b> Hides distribution, hides N, hides outliers.",
+      "<b>'Data normally distributed' on the basis of n = 6.</b> You can't see a distribution from 6 points.",
+      "<b>Reporting summary stats without plotting raw data.</b> Anscombe's quartet exists for a reason."
+    ]
+  }
+};
+
+/* ---------- Power calculator ---------- */
+// Standard normal CDF via Abramowitz-Stegun approximation
+function phi(z) {
+  if (z >= 0) {
+    const t = 1 / (1 + 0.2316419 * z);
+    const d = 0.3989422804 * Math.exp(-z * z / 2);
+    const p = d * t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+    return 1 - p;
+  } else {
+    return 1 - phi(-z);
+  }
+}
+// Inverse normal CDF (Beasley-Springer-Moro)
+function qnorm(p) {
+  if (p < 1e-9) p = 1e-9;
+  if (p > 1 - 1e-9) p = 1 - 1e-9;
+  const a = [-39.6968302866538, 220.946098424521, -275.928510446969, 138.357751867269, -30.6647980661472, 2.50662827745924];
+  const b = [-54.4760987982241, 161.585836858041, -155.698979859887, 66.8013118877197, -13.2806815528857];
+  const c = [-0.00778489400243029, -0.322396458041136, -2.40075827716184, -2.54973253934373, 4.37466414146497, 2.93816398269878];
+  const d = [0.00778469570904146, 0.32246712907004, 2.445134137143, 3.75440866190742];
+  let q, r;
+  if (p < 0.02425) {
+    q = Math.sqrt(-2 * Math.log(p));
+    return (((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+           ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  } else if (p <= 1 - 0.02425) {
+    q = p - 0.5; r = q * q;
+    return (((((a[0]*r+a[1])*r+a[2])*r+a[3])*r+a[4])*r+a[5]) * q /
+           (((((b[0]*r+b[1])*r+b[2])*r+b[3])*r+b[4])*r+1);
+  } else {
+    q = Math.sqrt(-2 * Math.log(1 - p));
+    return -(((((c[0]*q+c[1])*q+c[2])*q+c[3])*q+c[4])*q+c[5]) /
+            ((((d[0]*q+d[1])*q+d[2])*q+d[3])*q+1);
+  }
+}
+
+// Power engines (normal approximation; good for typical N/effect sizes)
+const POWER_ENGINES = {
+  two_sample_t: {
+    label: "Two-sample t-test (Welch / Student)",
+    fields: { d: { name: "Cohen's d (effect size)", default: 0.8, min: 0.05, step: 0.05, max: 3 } },
+    powerFromN(n, p) {
+      const ncp = p.d * Math.sqrt(n / 2);
+      const za = qnorm(1 - 0.025);
+      return Math.max(0, Math.min(1, phi(ncp - za) + phi(-ncp - za)));
+    },
+    nFromPower(power, p) {
+      const za = qnorm(0.975), zb = qnorm(power);
+      return Math.ceil(2 * Math.pow((za + zb) / p.d, 2));
+    },
+    nLabel: "N per group"
+  },
+  paired_t: {
+    label: "Paired t-test",
+    fields: { dz: { name: "Cohen's d_z (effect on differences)", default: 0.6, min: 0.05, step: 0.05, max: 3 } },
+    powerFromN(n, p) {
+      const ncp = p.dz * Math.sqrt(n);
+      const za = qnorm(1 - 0.025);
+      return Math.max(0, Math.min(1, phi(ncp - za) + phi(-ncp - za)));
+    },
+    nFromPower(power, p) {
+      const za = qnorm(0.975), zb = qnorm(power);
+      return Math.ceil(Math.pow((za + zb) / p.dz, 2));
+    },
+    nLabel: "Number of pairs"
+  },
+  anova: {
+    label: "One-way ANOVA (k groups)",
+    fields: {
+      f: { name: "Cohen's f", default: 0.4, min: 0.05, step: 0.05, max: 1.5 },
+      k: { name: "Number of groups", default: 3, min: 2, step: 1, max: 10 }
+    },
+    powerFromN(n, p) {
+      // Approx via noncentrality: ncp = f² · k · n; reject when F > F_crit. Use normal approx on √ncp.
+      const ncp = p.f * p.f * p.k * n;
+      const za = qnorm(0.975);
+      return Math.max(0, Math.min(1, phi(Math.sqrt(ncp) - za)));
+    },
+    nFromPower(power, p) {
+      const za = qnorm(0.975), zb = qnorm(power);
+      const ncpNeeded = Math.pow(za + zb, 2);
+      return Math.ceil(ncpNeeded / (p.f * p.f * p.k));
+    },
+    nLabel: "N per group"
+  },
+  correlation: {
+    label: "Pearson / Spearman correlation",
+    fields: { r: { name: "Expected r", default: 0.4, min: 0.05, step: 0.05, max: 0.95 } },
+    powerFromN(n, p) {
+      if (n < 4) return 0;
+      const z = 0.5 * Math.log((1 + p.r) / (1 - p.r));   // Fisher z-transform
+      const se = 1 / Math.sqrt(n - 3);
+      const za = qnorm(0.975);
+      return Math.max(0, Math.min(1, phi(z / se - za) + phi(-z / se - za)));
+    },
+    nFromPower(power, p) {
+      const z = 0.5 * Math.log((1 + p.r) / (1 - p.r));
+      const za = qnorm(0.975), zb = qnorm(power);
+      return Math.ceil(Math.pow((za + zb) / z, 2) + 3);
+    },
+    nLabel: "Total N (pairs)"
+  },
+  two_prop: {
+    label: "Two-proportion comparison",
+    fields: {
+      p1: { name: "Group 1 proportion", default: 0.30, min: 0.01, step: 0.05, max: 0.99 },
+      p2: { name: "Group 2 proportion", default: 0.55, min: 0.01, step: 0.05, max: 0.99 }
+    },
+    powerFromN(n, p) {
+      const pbar = (p.p1 + p.p2) / 2;
+      const num = Math.abs(p.p1 - p.p2);
+      const denom = Math.sqrt(2 * pbar * (1 - pbar) / n);
+      const za = qnorm(0.975);
+      return Math.max(0, Math.min(1, phi(num / denom - za) + phi(-num / denom - za)));
+    },
+    nFromPower(power, p) {
+      const pbar = (p.p1 + p.p2) / 2;
+      const za = qnorm(0.975), zb = qnorm(power);
+      const num = Math.abs(p.p1 - p.p2);
+      if (num < 1e-6) return Infinity;
+      return Math.ceil(2 * pbar * (1 - pbar) * Math.pow((za + zb) / num, 2));
+    },
+    nLabel: "N per group"
+  },
+  simulation_only: {
+    label: "Requires simulation",
+    info: true
+  },
+  not_applicable: {
+    label: "Not applicable",
+    info: true
+  }
+};
+
+// Map each leaf to a power-engine
+const POWER = {
+  leaf_2group_student:   { engine: "two_sample_t" },
+  leaf_2group_welch:     { engine: "two_sample_t" },
+  leaf_2group_nonparam:  { engine: "two_sample_t", note: "Mann–Whitney has ~95% the asymptotic efficiency of Student's t under normality. Treat the t-test calculation as a lower bound on N." },
+  leaf_2group_smalln:    { engine: "two_sample_t", note: "At N≤10/group, the normal approximation slightly overestimates power. Treat results as optimistic." },
+  leaf_paired_t:         { engine: "paired_t" },
+  leaf_wilcoxon:         { engine: "paired_t", note: "Wilcoxon is ~95% efficient relative to paired t; add ~5% to N." },
+  leaf_anova:            { engine: "anova" },
+  leaf_anova_smalln:     { engine: "anova", note: "Approximation. For small-N Bayesian hierarchical designs, prefer simulation." },
+  leaf_kw:               { engine: "anova", note: "Kruskal–Wallis is ~95% efficient relative to ANOVA; treat as a lower bound on N." },
+  leaf_pearson:          { engine: "correlation" },
+  leaf_spearman:         { engine: "correlation", note: "For Spearman, the Fisher-z formula is a close approximation." },
+  leaf_simple_reg:       { engine: "correlation", note: "For simple regression, N relates to r the same way as for correlation." },
+  leaf_binary_simple:    { engine: "two_prop" },
+  leaf_proportion_simple:{ engine: "two_prop", note: "Approximation for one-proportion-per-animal designs. For nested IHC data, simulate." },
+  leaf_binary_glmm:      { engine: "simulation_only", info: "Trial-level binary outcomes nested in animals need simulation. Use simr::powerSim() in R with a fitted glmer model, or simulate from prior beliefs in brms. A first-pass approximation: power ≈ a simple two-proportion calc using N=animals." },
+  leaf_lmm:              { engine: "simulation_only", info: "LMM power depends on within- vs between-animal variance ratios. Use simr::powerSim() (R) on a pilot fit. Rule of thumb: aim for at least 8–12 animals per group; cells within animals buy you precision on within-animal effects but not on between-group effects." },
+  leaf_lmm_deep:         { engine: "simulation_only", info: "Multi-level designs require simulation. simr (frequentist) or posterior predictive simulation in brms (Bayesian)." },
+  leaf_lmm_long:         { engine: "simulation_only", info: "Longitudinal mixed-effects power depends on # timepoints, # subjects, and the variance structure. simr is the standard tool." },
+  leaf_factorial:        { engine: "anova", note: "For the omnibus F on each factor. For the interaction term specifically, multiply required N by ~4." },
+  leaf_factorial_interaction: { engine: "anova", note: "For interaction power specifically, plan for ~4× the N you'd want for a main effect of the same size." },
+  leaf_ordinal_2:        { engine: "two_sample_t", note: "Use the t-test approximation with a converted effect size; for proper ordinal-model power, simulate from a cumulative-link fit." },
+  leaf_ordinal_many:     { engine: "anova", note: "Treat as approximate. For accurate ordinal-model power, simulate." },
+  leaf_count_simple:     { engine: "simulation_only", info: "For Poisson/NegBin GLMs use simulation. Rough rule: a NegBin GLM detecting a rate ratio of 1.5 with α=0.05 and power=0.80 needs roughly 20–40 animals/group depending on dispersion." },
+  leaf_count_glmm:       { engine: "simulation_only", info: "IHC GLMM power: simulate with the expected animal-level variance. simr::powerSim() on a glmmTMB fit works well." },
+  leaf_count_offset:     { engine: "simulation_only", info: "Add the offset to the simulated model; power calc otherwise the same as the simple count GLM." },
+  leaf_proportion_glmm:  { engine: "simulation_only", info: "Beta GLMM power: simulate from a glmmTMB/brms fit with realistic animal-level variance. Most published IHC % studies are powered for the effect size they ultimately report, not for biologically plausible smaller effects." },
+  leaf_proportion_extreme: { engine: "simulation_only", info: "Zero/one-inflated beta needs simulation. The lower bound: if your control group sits at the ceiling, even infinite N can't detect a difference." },
+  leaf_survival:         { engine: "two_prop", note: "Rough approximation: substitute the event proportion at the end of follow-up. For a proper log-rank power calc, use survival::powerCT or G*Power's survival module." },
+  leaf_latency:          { engine: "two_sample_t", note: "After log-transforming, latency comparison behaves like a t-test on log-times; use that effect size." },
+  leaf_nonlinear:        { engine: "simulation_only", info: "Nonlinear regression power depends on parameter identifiability — simulate from the model with realistic noise." },
+  leaf_multi_reg:        { engine: "simulation_only", info: "Multiple-regression power: G*Power or pwr::pwr.f2.test in R. With LASSO/Bayesian shrinkage, simulate." },
+  leaf_long_linear:      { engine: "simulation_only", info: "Mixed-effects longitudinal models: simr::powerSim(). For a rough first pass, treat as 'pre vs post' and use paired t." },
+  leaf_long_nonlinear:   { engine: "simulation_only", info: "Nonlinear / GAMM power: simulate from a pilot fit. No closed form." },
+  leaf_long_discrete:    { engine: "simulation_only", info: "Use simulation for the full mixed-effects model. For a quick sanity check, run the calculator as a paired t on the two most-different timepoints." },
+  describe_leaf:         { engine: "not_applicable", info: "Power is about detecting effects, not describing data. For descriptive precision, think about CI width: 95% CI half-width for a mean at SD=1 is approximately 2/√n." }
+};
+
+/* ---------- State ---------- */
+let path = []; // array of { stepId, choice, label, value, warning? }
+
+const $main = document.getElementById('main');
+const $crumbs = document.getElementById('breadcrumb');
+const $warnings = document.getElementById('warnings');
+const $reset = document.getElementById('reset-btn');
+
+function currentStepId() {
+  if (path.length === 0) return 'start';
+  const last = path[path.length - 1];
+  return last.next;
+}
+
+function render() {
+  const stepId = currentStepId();
+  const node = TREE[stepId];
+  if (!node) {
+    $main.innerHTML = `<p>Reached unknown node "${stepId}". <button class="btn" onclick="resetTree()">Reset</button></p>`;
+    return;
+  }
+  if (node.type === 'question') renderQuestion(stepId, node);
+  else renderResult(stepId, node);
+  renderBreadcrumbs();
+  renderWarnings();
+}
+
+function renderQuestion(stepId, node) {
+  const stepNum = path.length + 1;
+  const progressPct = Math.min(100, 20 + path.length * 18);
+  const opts = node.options.map((o, i) => `
+    <button class="opt" data-idx="${i}">
+      <span class="label">${o.label}</span>
+      <span class="desc">${o.desc}</span>
+    </button>
+  `).join('');
+
+  $main.innerHTML = `
+    <div class="step-label">Step ${stepNum} · ${node.label}</div>
+    <div class="progress"><div class="progress-bar" style="width:${progressPct}%"></div></div>
+    <h2 class="q-title">${node.title}</h2>
+    <div class="q-hint">${node.hint}</div>
+    <div class="options">${opts}</div>
+    ${path.length > 0 ? `
+      <div class="footer-bar">
+        <button class="btn" id="back-btn">← Back</button>
+        <button class="btn" id="reset-btn-2">Start over</button>
+      </div>` : ''}
+  `;
+
+  $main.querySelectorAll('.opt').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx, 10);
+      const choice = node.options[idx];
+      path.push({
+        stepId,
+        stepLabel: node.label,
+        choice: choice.label,
+        value: choice.value,
+        next: choice.next,
+        warning: choice.warning
+      });
+      render();
+    });
+  });
+  const back = document.getElementById('back-btn');
+  if (back) back.addEventListener('click', () => { path.pop(); render(); });
+  const r2 = document.getElementById('reset-btn-2');
+  if (r2) r2.addEventListener('click', resetTree);
+}
+
+function renderResult(stepId, node) {
+  const pitfalls = (node.pitfalls || []).map(p => `<li>${markupGlossary(p)}</li>`).join('');
+  const boomer = BOOMER[stepId];
+  const boomerHtml = boomer ? `
+    <div class="boomer">
+      <span class="tag">⚠ Boomer Warning</span>
+      <h4>How this gets mishandled in practice</h4>
+      <ul>${boomer.items.map(b => `<li>${markupGlossary(b)}</li>`).join('')}</ul>
+    </div>` : '';
+
+  const powerHtml = renderPowerCalcHtml(stepId);
+
+  $main.innerHTML = `
+    <div class="result-header">Recommendation</div>
+    <h2 class="result-title">${node.title}</h2>
+
+    <div class="tracks">
+      <div class="track freq">
+        <h4>● Frequentist track</h4>
+        <div class="test-name">${markupGlossary(node.freq.name)}</div>
+        <div class="test-desc">${markupGlossary(node.freq.desc)}</div>
+        <div class="code">${node.freq.code}</div>
+        <div class="why">${markupGlossary(node.freq.why)}</div>
+      </div>
+      <div class="track bayes">
+        <h4>● Bayesian track</h4>
+        <div class="test-name">${markupGlossary(node.bayes.name)}</div>
+        <div class="test-desc">${markupGlossary(node.bayes.desc)}</div>
+        <div class="code">${node.bayes.code}</div>
+        <div class="why">${markupGlossary(node.bayes.why)}</div>
+      </div>
+    </div>
+
+    ${boomerHtml}
+
+    ${powerHtml}
+
+    ${pitfalls ? `
+      <div class="pitfalls">
+        <h4>Common pitfalls at this leaf</h4>
+        <ul>${pitfalls}</ul>
+      </div>` : ''}
+
+    ${node.neuro ? `
+      <div class="neuro-notes">
+        <h4>Neurobio-specific note</h4>
+        ${markupGlossary(node.neuro)}
+      </div>` : ''}
+
+    <details class="helper">
+      <summary>How to choose between the two tracks here</summary>
+      <div>
+        Lean <b>frequentist</b> when: N is reasonably large, your field expects a p-value, the design is clean, and you want a fast standard analysis.<br>
+        Lean <b>Bayesian</b> when: N is small (typical mouse N≤10/group), you have prior knowledge about plausible effect sizes, the model is hierarchical, you want to quantify evidence for the null, or you plan to update the analysis as more animals arrive.
+      </div>
+    </details>
+
+    <div class="footer-bar">
+      <button class="btn" id="back-btn">← Back</button>
+      <button class="btn" id="reset-btn-2">Start over</button>
+    </div>
+  `;
+  document.getElementById('back-btn').addEventListener('click', () => { path.pop(); render(); });
+  document.getElementById('reset-btn-2').addEventListener('click', resetTree);
+  attachPowerCalcHandlers(stepId);
+}
+
+function renderPowerCalcHtml(stepId) {
+  const meta = POWER[stepId];
+  if (!meta) return '';
+  const engine = POWER_ENGINES[meta.engine];
+  if (!engine) return '';
+
+  if (engine.info) {
+    return `
+      <div class="powcalc">
+        <h4>Power calculator</h4>
+        <div class="pc-test">${engine.label} — closed-form unavailable.</div>
+        <div class="powcalc-result"><div style="font-size:13px;">${markupGlossary(meta.info || '')}</div></div>
+      </div>`;
+  }
+
+  const fields = engine.fields;
+  const fieldHtml = Object.keys(fields).map(key => {
+    const f = fields[key];
+    return `
+      <div class="powcalc-field">
+        <label>${f.name}</label>
+        <input type="number" data-key="${key}" value="${f.default}"
+               min="${f.min}" max="${f.max}" step="${f.step}" />
+      </div>`;
+  }).join('');
+
+  const note = meta.note ? `<div class="powcalc-note">${markupGlossary(meta.note)}</div>` : '';
+
+  return `
+    <div class="powcalc" id="powcalc-${stepId}">
+      <h4>Power calculator</h4>
+      <div class="pc-test">${engine.label} · α = 0.05, two-tailed</div>
+      <div class="powcalc-mode">
+        <button class="pc-mode active" data-mode="n_from_power">Solve for N</button>
+        <button class="pc-mode" data-mode="power_from_n">Solve for power</button>
+      </div>
+      <div class="powcalc-grid">
+        ${fieldHtml}
+        <div class="powcalc-field" data-shown-when="n_from_power">
+          <label>Target power</label>
+          <input type="number" data-key="power" value="0.80" min="0.05" max="0.99" step="0.05" />
+        </div>
+        <div class="powcalc-field" data-shown-when="power_from_n" style="display:none">
+          <label>${engine.nLabel}</label>
+          <input type="number" data-key="n" value="20" min="2" max="2000" step="1" />
+        </div>
+      </div>
+      <div class="powcalc-result" data-result></div>
+      ${note}
+    </div>`;
+}
+
+function attachPowerCalcHandlers(stepId) {
+  const meta = POWER[stepId];
+  if (!meta) return;
+  const engine = POWER_ENGINES[meta.engine];
+  if (!engine || engine.info) return;
+  const wrap = document.getElementById(`powcalc-${stepId}`);
+  if (!wrap) return;
+
+  let mode = 'n_from_power';
+
+  function recompute() {
+    const params = {};
+    Object.keys(engine.fields).forEach(k => {
+      const inp = wrap.querySelector(`input[data-key="${k}"]`);
+      params[k] = parseFloat(inp.value);
+    });
+    const result = wrap.querySelector('[data-result]');
+    if (mode === 'n_from_power') {
+      const power = parseFloat(wrap.querySelector('input[data-key="power"]').value);
+      const n = engine.nFromPower(power, params);
+      if (!isFinite(n)) {
+        result.innerHTML = `<div class="big">∞</div><div class="small">Effect size too small / no achievable separation.</div>`;
+      } else {
+        result.innerHTML = `<div class="big">${n}</div><div class="small">${engine.nLabel} for power = ${power}</div>`;
+      }
+    } else {
+      const n = parseFloat(wrap.querySelector('input[data-key="n"]').value);
+      const p = engine.powerFromN(n, params);
+      result.innerHTML = `<div class="big">${(p*100).toFixed(1)}%</div><div class="small">Power at ${engine.nLabel.toLowerCase()} = ${n}</div>`;
+    }
+  }
+
+  wrap.querySelectorAll('.pc-mode').forEach(btn => {
+    btn.addEventListener('click', () => {
+      mode = btn.dataset.mode;
+      wrap.querySelectorAll('.pc-mode').forEach(b => b.classList.toggle('active', b === btn));
+      wrap.querySelectorAll('[data-shown-when]').forEach(el => {
+        el.style.display = el.dataset.shownWhen === mode ? '' : 'none';
+      });
+      recompute();
+    });
+  });
+  wrap.querySelectorAll('input').forEach(inp => inp.addEventListener('input', recompute));
+  recompute();
+}
+
+/* ---------- Glossary popup + modal ---------- */
+const $glossPop = document.getElementById('gloss-pop');
+const $glossModal = document.getElementById('gloss-modal');
+const $glossList = document.getElementById('gloss-list');
+const $glossSearch = document.getElementById('gloss-search');
+const $glossBtn = document.getElementById('gloss-btn');
+const $glossClose = document.getElementById('gloss-close');
+
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('.gloss');
+  if (t) {
+    const term = t.dataset.term;
+    const entry = GLOSSARY[term];
+    if (!entry) return;
+    const rect = t.getBoundingClientRect();
+    $glossPop.innerHTML = `
+      <div class="term">${term}</div>
+      <div>${entry.def}</div>
+      <div style="margin-top:8px;"><a href="#" data-open-glossary="${term}">View in full glossary →</a></div>`;
+    $glossPop.style.display = 'block';
+    const x = rect.left + window.scrollX;
+    const y = rect.bottom + window.scrollY + 4;
+    $glossPop.style.left = Math.min(x, window.innerWidth - 360) + 'px';
+    $glossPop.style.top = y + 'px';
+    e.stopPropagation();
+    return;
+  }
+  if (e.target.closest('#gloss-pop')) {
+    const open = e.target.closest('[data-open-glossary]');
+    if (open) {
+      e.preventDefault();
+      openGlossaryModal(open.dataset.openGlossary);
+      $glossPop.style.display = 'none';
+    }
+    return;
+  }
+  // click outside → hide popup
+  $glossPop.style.display = 'none';
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    $glossPop.style.display = 'none';
+    $glossModal.classList.remove('open');
+  }
+});
+
+function openGlossaryModal(focusTerm) {
+  renderGlossaryList('');
+  $glossModal.classList.add('open');
+  $glossSearch.value = '';
+  if (focusTerm) {
+    setTimeout(() => {
+      const el = document.getElementById('gloss-entry-' + cssSafe(focusTerm));
+      if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    }, 50);
+  }
+}
+
+function cssSafe(s) { return s.replace(/[^a-z0-9]/gi, '-'); }
+
+function renderGlossaryList(filter) {
+  const f = (filter || '').toLowerCase().trim();
+  const keys = Object.keys(GLOSSARY).sort((a, b) => a.localeCompare(b));
+  const filtered = !f ? keys : keys.filter(k => {
+    if (k.toLowerCase().includes(f)) return true;
+    if ((GLOSSARY[k].aliases || []).some(a => a.toLowerCase().includes(f))) return true;
+    if (GLOSSARY[k].def.toLowerCase().includes(f)) return true;
+    return false;
+  });
+  $glossList.innerHTML = filtered.map(k => {
+    const e = GLOSSARY[k];
+    const aliases = e.aliases && e.aliases.length ? `<span class="aliases">(also: ${e.aliases.join(', ')})</span>` : '';
+    return `<div class="gloss-entry" id="gloss-entry-${cssSafe(k)}">
+      <span class="term">${k}</span> ${aliases}
+      <div>${e.def}</div>
+    </div>`;
+  }).join('') || '<div class="warning-empty" style="padding:10px;">No matches.</div>';
+}
+
+$glossBtn.addEventListener('click', () => openGlossaryModal());
+$glossClose.addEventListener('click', () => $glossModal.classList.remove('open'));
+$glossModal.addEventListener('click', (e) => {
+  if (e.target === $glossModal) $glossModal.classList.remove('open');
+});
+$glossSearch.addEventListener('input', (e) => renderGlossaryList(e.target.value));
+
+function renderBreadcrumbs() {
+  if (path.length === 0) {
+    $crumbs.innerHTML = '<span class="crumb-empty">No selections yet — start with your scientific question below.</span>';
+    return;
+  }
+  $crumbs.innerHTML = path.map((p, i) => `
+    <span class="crumb" data-i="${i}">
+      <span class="k">${p.stepLabel}</span>
+      <span class="v">${p.choice}</span>
+    </span>${i < path.length - 1 ? '<span class="crumb-sep">›</span>' : ''}
+  `).join('');
+  $crumbs.querySelectorAll('.crumb').forEach(c => {
+    c.addEventListener('click', () => {
+      const i = parseInt(c.dataset.i, 10);
+      path = path.slice(0, i);
+      render();
+    });
+  });
+}
+
+function renderWarnings() {
+  const warnings = path.filter(p => p.warning);
+  if (warnings.length === 0) {
+    $warnings.innerHTML = '<span class="warning-empty">Warnings will appear here as you make choices.</span>';
+    return;
+  }
+  $warnings.innerHTML = warnings.map(w => `
+    <div class="warning-item">
+      <b>${w.stepLabel} → ${w.choice}:</b> ${w.warning}
+    </div>
+  `).join('');
+}
+
+function resetTree() {
+  path = [];
+  render();
+}
+
+$reset.addEventListener('click', resetTree);
+
+/* initial render */
+render();
+</script>
+</body>
+</html>
