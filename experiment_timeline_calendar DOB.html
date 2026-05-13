@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>In vivo experiment timeline maker — v2 (with calendar export)</title>
+<style>
+  :root {
+    --bg: #f5f5f3;
+    --card: #ffffff;
+    --ink: #1a1a1a;
+    --muted: #888;
+    --line: rgba(0,0,0,0.12);
+    --accent: #185FA5;
+    --accent-bg: #E6F1FB;
+    --weekend: #C0392B;
+  }
+  * { box-sizing: border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); padding: 1rem 1.5rem; color: var(--ink); margin: 0; }
+  h1 { font-size: 20px; font-weight: 500; margin: 0 0 0.25rem; }
+  h2 { font-size: 15px; font-weight: 500; margin: 0 0 0.75rem; }
+  .subtitle { font-size: 13px; color: var(--muted); margin: 0 0 1rem; }
+
+  .toolbar { position: sticky; top: 0; background: var(--bg); padding: 0.5rem 0 0.75rem; z-index: 50; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; border-bottom: 0.5px solid var(--line); margin-bottom: 1rem; }
+  .tb-btn { background: #fff; color: var(--accent); border: 0.5px solid var(--accent); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .tb-btn:hover { background: var(--accent-bg); }
+  .tb-btn.primary { background: var(--accent); color: #fff; }
+  .tb-btn.primary:hover { background: #134B84; }
+  .tb-btn.danger { color: #A5181F; border-color: #A5181F; }
+  .tb-btn.danger:hover { background: #FBE6E6; }
+  .tb-btn.success { background: #1B6B33; color: #fff; border-color: #1B6B33; }
+  .tb-btn.success:hover { background: #14502A; }
+  .save-indicator { font-size: 11px; color: var(--muted); margin-left: auto; }
+  .save-indicator.saved { color: #1B6B33; }
+  .save-indicator.dirty { color: #854F0B; }
+
+  .card { background: var(--card); border: 0.5px solid var(--line); border-radius: 12px; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+  .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 8px; }
+  [contenteditable="true"]:focus { outline: 1.5px solid var(--accent); outline-offset: 2px; border-radius: 4px; background: #fff; }
+
+  .cohort-row { display: flex; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 0.5px dashed rgba(0,0,0,0.06); flex-wrap: wrap; }
+  .cohort-row:last-child { border-bottom: none; }
+  .cohort-color { width: 18px; height: 18px; border-radius: 4px; cursor: pointer; border: 0.5px solid var(--line); flex-shrink: 0; padding: 0; }
+  .cohort-row input[type="text"] { background: transparent; border: none; border-bottom: 0.5px solid transparent; padding: 3px 4px; font-size: 13px; min-width: 60px; color: var(--ink); }
+  .cohort-row input[type="text"]:hover { border-bottom-color: var(--line); }
+  .cohort-row input[type="text"]:focus { outline: none; border-bottom-color: var(--accent); }
+  .cohort-row input[type="number"] { width: 50px; background: var(--bg); border: 0.5px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 13px; }
+  .cohort-row .ic-name { font-weight: 500; min-width: 110px; }
+  .cohort-row .ic-geno { flex: 1; min-width: 180px; font-size: 12px; color: #444; }
+  .cohort-row .ic-role { width: 90px; font-size: 12px; }
+  .cohort-row .ic-group { width: 130px; font-size: 12px; }
+  .cohort-row .ic-dob { background: var(--bg); border: 0.5px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; width: 130px; }
+  .cohort-row .ic-offset { width: 60px; }
+  .cohort-row .ic-offset.derived { background: #EEF4FB; color: var(--accent); font-weight: 500; }
+  .dob-hint { font-size: 10px; color: var(--muted); padding: 0 2px; white-space: nowrap; }
+  .dob-hint.weekend { color: var(--weekend); font-weight: 600; }
+  .cohort-row .ic-n-label { font-size: 11px; color: var(--muted); }
+  .x-btn { background: none; border: none; color: #A5181F; font-size: 16px; cursor: pointer; padding: 0 4px; line-height: 1; }
+  .x-btn:hover { color: #7B181F; }
+  .add-btn { background: #fff; color: var(--accent); border: 0.5px dashed var(--accent); padding: 4px 12px; border-radius: 6px; font-size: 12px; cursor: pointer; margin-top: 6px; }
+  .add-btn:hover { background: var(--accent-bg); }
+  .group-header { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 8px 0 2px; padding: 2px 6px; background: #f0efe9; border-radius: 4px; display: inline-block; }
+
+  .timeline-controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; font-size: 12px; color: #555; }
+  .timeline-controls label { display: inline-flex; align-items: center; gap: 4px; }
+  .timeline-controls input[type="number"] { width: 60px; background: var(--bg); border: 0.5px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; }
+  .timeline-controls input[type="date"] { background: var(--bg); border: 0.5px solid var(--line); border-radius: 6px; padding: 3px 6px; font-size: 12px; }
+  .timeline-wrap { overflow-x: auto; padding-bottom: 0.5rem; }
+  .timeline { min-width: 800px; position: relative; }
+  .day-axis { position: relative; height: 56px; border-bottom: 1.5px solid var(--ink); margin-bottom: 6px; }
+  .day-axis.with-date { height: 70px; }
+  .day-tick { position: absolute; top: 0; transform: translateX(-50%); font-size: 11px; color: var(--ink); text-align: center; line-height: 1.25; }
+  .day-tick .tick-day { font-weight: 600; }
+  .day-tick .tick-age { color: var(--muted); font-size: 10px; }
+  .day-tick .tick-date { color: #555; font-size: 10px; white-space: nowrap; }
+  .day-tick .tick-date.weekend { color: var(--weekend); font-weight: 600; }
+  .day-tick .tick-line { width: 1px; height: 6px; background: var(--ink); margin: 2px auto 0; }
+  .cohort-track { position: relative; height: 56px; margin-bottom: 6px; border-radius: 6px; background: rgba(0,0,0,0.02); }
+  .cohort-track-label { position: absolute; left: 8px; top: 8px; font-size: 11px; font-weight: 600; color: var(--ink); padding: 2px 6px; border-radius: 4px; background: #fff; border: 0.5px solid var(--line); z-index: 2; }
+  .cohort-track-label .offset-pill { background: rgba(0,0,0,0.05); color: var(--muted); border-radius: 3px; padding: 0 4px; font-size: 10px; margin-left: 4px; font-weight: 500; }
+  .phase-bar { position: absolute; top: 28px; height: 24px; border-radius: 4px; padding: 0 6px; display: flex; align-items: center; gap: 4px; cursor: pointer; font-size: 11px; color: #fff; font-weight: 500; overflow: hidden; white-space: nowrap; user-select: none; box-shadow: inset 0 0 0 0.5px rgba(0,0,0,0.15); }
+  .phase-bar:hover { filter: brightness(1.08); }
+  .phase-bar.endpoint { width: 22px !important; height: 22px; border-radius: 50%; padding: 0; justify-content: center; top: 28px; }
+  .phase-bar .ph-icon { flex-shrink: 0; }
+  .phase-bar .tool-dot { width: 6px; height: 6px; border-radius: 50%; background: #fff; flex-shrink: 0; opacity: 0.7; }
+
+  .phase-card { background: var(--bg); border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 8px; border-left: 4px solid #888; }
+  .phase-card.collapsed .phase-body { display: none; }
+  .phase-card .phase-head { display: flex; align-items: center; gap: 10px; cursor: pointer; flex-wrap: wrap; }
+  .phase-card .phase-icon { font-size: 14px; }
+  .phase-card .phase-name { font-weight: 500; font-size: 14px; flex: 1; min-width: 100px; }
+  .phase-card .phase-days { font-size: 12px; color: var(--muted); }
+  .phase-card .phase-cohorts { font-size: 11px; color: #555; padding: 2px 6px; background: #fff; border-radius: 4px; }
+  .phase-card .phase-body { padding-top: 8px; margin-top: 8px; border-top: 0.5px solid rgba(0,0,0,0.06); }
+  .phase-card textarea { width: 100%; min-height: 60px; font-family: inherit; font-size: 12px; padding: 6px 8px; border: 0.5px solid var(--line); border-radius: 6px; resize: vertical; background: #fff; color: var(--ink); }
+  .phase-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; margin-bottom: 8px; }
+  .phase-fields label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; display: flex; flex-direction: column; gap: 2px; }
+  .phase-fields input, .phase-fields select { font-size: 12px; padding: 4px 6px; border: 0.5px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+  .cohort-pills { display: flex; gap: 4px; flex-wrap: wrap; }
+  .cohort-pill { font-size: 11px; padding: 2px 8px; border-radius: 12px; cursor: pointer; border: 0.5px solid var(--line); background: #fff; }
+  .cohort-pill.active { color: #fff; border-color: transparent; }
+  .tools-list { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+  .tool-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .tool-row input { flex: 1; min-width: 100px; font-size: 12px; padding: 4px 6px; border: 0.5px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+  .tool-row .tool-link-btn { background: var(--accent); color: #fff; border: none; padding: 4px 10px; border-radius: 6px; font-size: 11px; cursor: pointer; text-decoration: none; }
+  .tool-row .tool-link-btn:hover { background: #134B84; }
+  .tool-buttons { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+  .tool-button { font-size: 11px; padding: 3px 10px; border-radius: 6px; background: var(--accent); color: #fff !important; text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+  .tool-button:hover { background: #134B84; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; align-items: center; justify-content: center; z-index: 100; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 12px; padding: 1.25rem; max-width: 520px; width: 92vw; max-height: 80vh; overflow-y: auto; }
+  .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .preset-tile { background: var(--bg); border: 0.5px solid var(--line); border-radius: 8px; padding: 10px; cursor: pointer; text-align: left; font-size: 12px; }
+  .preset-tile:hover { border-color: var(--accent); background: var(--accent-bg); }
+  .preset-tile .pt-icon { font-size: 18px; }
+  .preset-tile .pt-name { font-weight: 500; font-size: 13px; margin: 4px 0 2px; }
+  .preset-tile .pt-desc { font-size: 11px; color: var(--muted); }
+
+  /* Calendar export modal */
+  .cal-cohort-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 0.5px dashed rgba(0,0,0,0.06); font-size: 13px; cursor: pointer; }
+  .cal-cohort-row:last-child { border-bottom: none; }
+  .cal-cohort-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); }
+  .cal-cohort-row .cal-color { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+  .cal-cohort-row .cal-name { font-weight: 500; }
+  .cal-cohort-row .cal-meta { color: var(--muted); font-size: 11px; }
+  .cal-summary { background: var(--accent-bg); color: var(--accent); padding: 8px 12px; border-radius: 6px; font-size: 12px; margin: 12px 0; }
+  .cal-warning { background: #FBE6E6; color: #7B181F; padding: 8px 12px; border-radius: 6px; font-size: 12px; margin: 12px 0; }
+  .cal-options { font-size: 12px; color: #555; margin: 8px 0; padding: 8px 12px; background: var(--bg); border-radius: 6px; }
+  .cal-options label { display: flex; align-items: center; gap: 6px; cursor: pointer; padding: 2px 0; }
+  .cal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+
+  .notes-list { display: flex; flex-direction: column; gap: 6px; }
+  .note { display: flex; gap: 6px; align-items: flex-start; padding: 6px 8px; background: #FFFCF0; border-left: 2px solid #E6BB3D; border-radius: 4px; font-size: 12px; }
+  .note .note-text { flex: 1; }
+
+  .hidden-input { display: none; }
+
+  @media print {
+    @page { size: A4 landscape; margin: 10mm; }
+    html, body { background: #fff !important; padding: 0 !important; margin: 0 !important; color: #000 !important; font-size: 9pt; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .toolbar, .x-btn, .add-btn, .modal-overlay, .timeline-controls, .save-indicator, .tb-btn, .ic-group, .ic-offset { display: none !important; }
+    .card { border: 0.5pt solid #888 !important; padding: 6pt 8pt; margin-bottom: 6pt; box-shadow: none !important; page-break-inside: avoid; break-inside: avoid; border-radius: 4pt; }
+    .timeline-wrap { overflow: visible !important; }
+    .timeline { min-width: auto !important; }
+    .phase-bar { color: #fff !important; box-shadow: none; }
+    .cohort-row input { background: transparent !important; }
+    [contenteditable] { outline: none !important; }
+    .phase-card .phase-body { display: block !important; }
+    body::after { content: "Experimental timeline · printed " attr(data-printdate); display: block; text-align: center; font-size: 8pt; color: #666; margin-top: 6pt; }
+  }
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="tb-btn primary" onclick="openPresetModal()">+ Add phase</button>
+  <button class="tb-btn" onclick="addCohort()">+ Add cohort</button>
+  <button class="tb-btn success" onclick="openCalendarExport()" title="Export phases to .ics for Outlook / Apple Calendar / Google Calendar">📅 Export to calendar</button>
+  <button class="tb-btn" onclick="exportJSON()">⬇ Export JSON</button>
+  <button class="tb-btn" onclick="document.getElementById('import-file').click()">⬆ Import JSON</button>
+  <input type="file" id="import-file" class="hidden-input" accept=".json" onchange="importJSON(event)">
+  <button class="tb-btn" onclick="printSheet()">🖨 Print / PDF</button>
+  <button class="tb-btn danger" onclick="resetToDefault()">↺ Reset</button>
+  <button class="tb-btn" onclick="loadMyrfTemplate()">Myrf Cohort 1</button>
+  <button class="tb-btn" onclick="loadAgingTemplate()">Aging cohorts</button>
+  <span class="save-indicator saved" id="save-indicator">● auto-saved</span>
+</div>
+
+<div class="card">
+  <h1 contenteditable="true" id="title">Experimental timeline</h1>
+  <p class="subtitle" contenteditable="true" id="subtitle">Editable subtitle — describe the experiment, dates, lab.</p>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Cohorts</h2>
+    <button class="add-btn" onclick="addCohort()">+ Add cohort</button>
+  </div>
+  <p style="font-size:11px;color:var(--muted);margin:0 0 0.5rem;line-height:1.5;">
+    <b>Group</b> stacks cohorts under a shared header. <b>DOB</b> (date of birth / litter DOB) — when set, Day 1 calendar date is auto-derived from DOB + the P-age offset, and <b>Δd</b> auto-fills from the difference between cohort DOBs (so two litters born a week apart automatically render a week apart on the timeline). Without a DOB you can still set Δd manually. ⇄ bulk-shift, ⎘ duplicate.
+  </p>
+  <div id="cohort-list"></div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Timeline</h2>
+    <div class="timeline-controls">
+      <label>Start day <input type="number" id="axis-start" onchange="updateAxis()" value="1"></label>
+      <label>End day <input type="number" id="axis-end" onchange="updateAxis()" value="23"></label>
+      <label>Day 1 = P<input type="number" id="age-offset" onchange="updateAxis()" value="75"></label>
+      <label>Day 1 calendar date <input type="date" id="calendar-anchor" onchange="updateAxis()"></label>
+      <button class="tb-btn" onclick="document.getElementById('calendar-anchor').value='';updateAxis()" title="Clear calendar date" style="padding:3px 8px;">clear date</button>
+      <button class="add-btn" onclick="openPresetModal()">+ Add phase</button>
+    </div>
+  </div>
+  <div class="timeline-wrap">
+    <div class="timeline" id="timeline"></div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Phases</h2>
+    <button class="add-btn" onclick="openPresetModal()">+ Add phase</button>
+  </div>
+  <div id="phase-list"></div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    <h2>Notes &amp; tissue collection</h2>
+    <button class="add-btn" onclick="addNote()">+ Add note</button>
+  </div>
+  <div id="notes-list" class="notes-list"></div>
+</div>
+
+<!-- Phase preset picker -->
+<div class="modal-overlay" id="preset-modal" onclick="if(event.target===this)closeModal('preset-modal')">
+  <div class="modal">
+    <h2>Choose a phase type</h2>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 12px;">All fields can be edited after you add the phase.</p>
+    <div class="preset-grid" id="preset-grid"></div>
+    <div style="margin-top:12px;text-align:right;">
+      <button class="tb-btn" onclick="closeModal('preset-modal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar export modal -->
+<div class="modal-overlay" id="calendar-modal" onclick="if(event.target===this)closeModal('calendar-modal')">
+  <div class="modal">
+    <h2>Export to calendar</h2>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 12px;">
+      Generates a standard <b>.ics</b> file. Drag it into Apple Calendar, Outlook, Google Calendar, Thunderbird etc. Re-importing after edits updates the existing events (events have stable IDs based on phase + cohort).
+    </p>
+
+    <div id="cal-warning-box"></div>
+    <div id="cal-anchor-info" style="font-size:12px;color:#555;margin-bottom:8px;"></div>
+
+    <h3 style="font-size:13px;font-weight:500;margin:8px 0 4px;">Cohorts to include</h3>
+    <div id="cal-cohort-list"></div>
+
+    <div class="cal-options">
+      <label><input type="checkbox" id="cal-opt-banner" checked> Multi-day phases as a single banner event (uncheck to get one event per day)</label>
+      <label><input type="checkbox" id="cal-opt-details" checked> Include phase details &amp; attached-tool list in the event description</label>
+    </div>
+
+    <div class="cal-summary" id="cal-summary"></div>
+
+    <div class="cal-actions">
+      <button class="tb-btn" onclick="closeModal('calendar-modal')">Cancel</button>
+      <button class="tb-btn success" id="cal-export-btn" onclick="doCalendarExport()">⬇ Download .ics</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// =========================================================
+//  PHASE PRESETS
+// =========================================================
+const PHASE_PRESETS = {
+  'tamoxifen': { name:'Tamoxifen', icon:'💊', color:'#E67E22', duration:4, type:'drug-admin', shape:'bar',
+    details:'180 mg/kg, oral gavage × 4 days\n30 mg/mL in 10% EtOH / 90% corn oil',
+    suggestedTool:{ label:'Tamoxifen calculator', file:'tamoxifen_calculator.html' },
+    desc:'Inducible Cre activation' },
+  'gavage': { name:'Drug — oral gavage', icon:'💊', color:'#E67E22', duration:4, type:'drug-admin', shape:'bar',
+    details:'Compound:\nDose:\nVehicle:\nVolume per mouse:', desc:'Repeated gavage dosing' },
+  'ip': { name:'Drug — IP injection', icon:'💉', color:'#D35400', duration:4, type:'drug-admin', shape:'bar',
+    details:'Compound:\nDose (mg/kg):\nVehicle:\nVolume per mouse (µL):', desc:'Intraperitoneal injection' },
+  'drinking-water': { name:'Drug in drinking water', icon:'💧', color:'#27AE60', duration:10, type:'drug-admin', shape:'bar',
+    details:'Compound:\nConcentration:\nLight-protected bottles, refresh every 2–3 days\nRecord water intake', desc:'Continuous oral dosing' },
+  'edu': { name:'EdU labelling', icon:'🧬', color:'#27AE60', duration:10, type:'drug-admin', shape:'bar',
+    details:'EdU 0.2 mg/mL in drinking water\nLight-protected, refresh q2–3 days\nTracks newly generated cells', desc:'Proliferation labelling' },
+  'surgery': { name:'Surgery', icon:'🔬', color:'#9B59B6', duration:1, type:'surgery', shape:'endpoint',
+    details:'Procedure:\nAnaesthetic:\nAnalgesia (pre/post):\nDuration:', desc:'Stereotaxic / cannulation / implant' },
+  'recovery': { name:'Recovery', icon:'🛌', color:'#F1C40F', duration:7, type:'recovery', shape:'bar',
+    details:'Daily welfare checks\nAnalgesia: first 48 h\nWeight monitoring', desc:'Post-surgical recovery' },
+  'behaviour': { name:'Behavioural testing', icon:'🏃', color:'#3498DB', duration:7, type:'behaviour', shape:'bar',
+    details:'Task:\nSession duration:\nHabituation:\nTime of day:', desc:'Generic behaviour block' },
+  'running-wheel': { name:'Running wheel', icon:'🏃', color:'#3498DB', duration:8, type:'behaviour', shape:'bar',
+    details:'Single-housed in dual-compartment cage\nWheel access at start of dark phase\nContinuous wheel-revolution recording', desc:'Voluntary / complex wheel' },
+  'rotarod': { name:'Rotarod', icon:'🌀', color:'#3498DB', duration:3, type:'behaviour', shape:'bar',
+    details:'Accelerating: 4–40 rpm over 5 min\n3 trials per session, 15-min ITI', desc:'Motor coordination' },
+  'ymaze': { name:'Y-maze / spatial', icon:'🧭', color:'#16A085', duration:1, type:'behaviour', shape:'endpoint',
+    details:'Spontaneous alternation\n8-min session, video-tracked', desc:'Working memory' },
+  'open-field': { name:'Open field', icon:'⬜', color:'#16A085', duration:1, type:'behaviour', shape:'endpoint',
+    details:'Arena: 50 × 50 cm\n10-min session, video-tracked\nMeasure: distance, centre time', desc:'Locomotor / anxiety' },
+  'mri': { name:'In vivo MRI', icon:'🧲', color:'#E91E63', duration:1, type:'imaging', shape:'endpoint',
+    details:'Modality:\nSequence(s):\nDuration:\nAnaesthesia:', desc:'In vivo imaging' },
+  '2p': { name:'2-photon imaging', icon:'🔬', color:'#E91E63', duration:1, type:'imaging', shape:'endpoint',
+    details:'Field of view:\nDepth:\nLaser power:\nFrame rate:', desc:'In vivo 2-photon' },
+  'eeg': { name:'EEG recording', icon:'〰', color:'#E91E63', duration:1, type:'imaging', shape:'bar',
+    details:'Electrode location(s):\nReference:\nSampling rate:\nSession length:', desc:'Electrophysiology' },
+  'habituation': { name:'Habituation / handling', icon:'🤝', color:'#1ABC9C', duration:5, type:'habituation', shape:'bar',
+    details:'Daily handling, ~5 min per animal\nCage / arena familiarisation', desc:'Pre-test acclimation' },
+  'weighing': { name:'Weighing / welfare', icon:'⚖', color:'#7F8C8D', duration:1, type:'monitoring', shape:'endpoint',
+    details:'Body weight\nVisual welfare check', desc:'Single welfare timepoint' },
+  'blood-draw': { name:'Blood draw', icon:'🩸', color:'#C0392B', duration:1, type:'tissue', shape:'endpoint',
+    details:'Method (tail-vein / cardiac):\nVolume:\nTube / anticoagulant:', desc:'Serum / plasma collection' },
+  'perfusion': { name:'Perfusion / endpoint', icon:'⚕', color:'#C0392B', duration:1, type:'tissue', shape:'endpoint',
+    details:'PBS → 4% PFA\nPost-fix overnight\nCryoprotect (30% sucrose)\nTissue: brain, spinal cord, …', desc:'Terminal tissue collection' },
+  'fresh-tissue': { name:'Fresh tissue collection', icon:'🧫', color:'#C0392B', duration:1, type:'tissue', shape:'endpoint',
+    details:'Tissue list:\nSnap-freeze / fix:\nDownstream assay:', desc:'Non-perfused harvest' },
+  'custom': { name:'Custom phase', icon:'◇', color:'#7F8C8D', duration:5, type:'custom', shape:'bar',
+    details:'', desc:'Blank — fill in yourself' }
+};
+
+// =========================================================
+//  STATE
+// =========================================================
+const STORAGE_KEY = 'expTimeline.v2';   // shared with v1 file so data carries over
+let state;
+
+function defaultState() {
+  return {
+    title: 'Experimental timeline',
+    subtitle: 'Editable subtitle — describe the experiment, dates, lab.',
+    axis: { start: 1, end: 30, ageOffset: null, calendarAnchor: null },
+    cohorts: [{ id: 'c1', name: 'Cohort 1', genotype: '', role: 'Treatment', n: 5, color: '#3498DB', group: '', dayOffset: 0 }],
+    phases: [],
+    notes: []
+  };
+}
+
+function migrateState(s) {
+  if (!s) return s;
+  s.cohorts = (s.cohorts || []).map(c => ({ group: '', dayOffset: 0, dateOfBirth: null, ...c }));
+  s.phases = (s.phases || []).map(p => ({ tools: [], ...p }));
+  s.notes = s.notes || [];
+  s.axis = { start: 1, end: 30, ageOffset: null, calendarAnchor: null, ...(s.axis || {}) };
+  return s;
+}
+
+function myrfTemplate() {
+  return {
+    title: 'Myrf cKO — Cohort 1: KO validation',
+    subtitle: 'n = 5 KO (Pdgfrα-CreERT2; Myrf^fl/fl + TAM)  vs.  n = 5 Ctrl (Cre-negative + TAM) · Adapted from Kaller et al. 2024 (Glia)',
+    axis: { start: 1, end: 23, ageOffset: 75, calendarAnchor: null },
+    cohorts: [
+      { id: 'ko', name: 'KO', genotype: 'Pdgfrα-CreERT2; Myrf^fl/fl', role: 'Knockout', n: 5, color: '#3498DB', group: 'Cohort 1', dayOffset: 0 },
+      { id: 'ctrl', name: 'Ctrl', genotype: 'Cre-negative littermates', role: 'Control', n: 5, color: '#7F8C8D', group: 'Cohort 1', dayOffset: 0 }
+    ],
+    phases: [
+      { id: 'p1', name: 'Tamoxifen', icon: '💊', color: '#E67E22', startDay: 1, duration: 4, shape: 'bar',
+        cohortIds: ['ko','ctrl'], details: '180 mg/kg, oral gavage × 4 days\n30 mg/mL in 10% EtOH / 90% corn oil\nP75 → P78',
+        tools: [{ label: 'Tamoxifen calculator', file: 'tamoxifen_calculator.html' }] },
+      { id: 'p2', name: 'EdU (drinking water)', icon: '🧬', color: '#27AE60', startDay: 5, duration: 10, shape: 'bar',
+        cohortIds: ['ko','ctrl'], details: 'EdU 0.2 mg/mL in drinking water × 10 days\nLight-protected bottles; refresh q2–3 days', tools: [] },
+      { id: 'p3', name: 'Complex running wheel', icon: '🏃', color: '#1B4F72', startDay: 15, duration: 8, shape: 'bar',
+        cohortIds: ['ko','ctrl'], details: 'Single-housed dual-compartment cage\n0.5–2 h cage acclimation, dividing wall in place\nWall removed at start of dark phase (~20:30)\nFree access to complex wheel × 8 days', tools: [] },
+      { id: 'p4', name: 'Perfusion', icon: '⚕', color: '#C0392B', startDay: 23, duration: 1, shape: 'endpoint',
+        cohortIds: ['ko','ctrl'], details: 'PBS → 4% PFA\nPost-fix overnight\nCryoprotect (30% sucrose)\nTissue: brain (coronal), spinal cord (cross + teased fibres)', tools: [] }
+    ],
+    notes: [
+      'Brain coronal sections — Olig2 / CC1 / EdU; MBP coverage in motor cortex & corpus callosum.',
+      'Spinal cord — Olig2 / CC1 / EdU; MBP / MAG / MOG.',
+      'Spinal cord teased CNS fibres — Caspr / Nav1.6 (node / paranode integrity).'
+    ]
+  };
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) { state = migrateState(JSON.parse(raw)); return true; }
+  } catch (e) { console.warn('load failed', e); }
+  return false;
+}
+function save() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); setSaved(true); }
+  catch (e) { console.warn('save failed', e); }
+}
+let saveTimer = null;
+function dirty() {
+  setSaved(false);
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(save, 1500);
+}
+function setSaved(s) {
+  const el = document.getElementById('save-indicator');
+  if (s) { el.textContent = '● auto-saved'; el.className = 'save-indicator saved'; }
+  else   { el.textContent = '● editing…';   el.className = 'save-indicator dirty'; }
+}
+
+// =========================================================
+//  HELPERS
+// =========================================================
+function uid() { return 'x' + Math.random().toString(36).slice(2, 9); }
+function dayToAge(d) {
+  const off = state.axis.ageOffset;
+  if (off === null || off === '' || isNaN(off)) return null;
+  return 'P' + (parseInt(off) + (d - state.axis.start));
+}
+function dayToDate(d) {
+  const a = state.axis.calendarAnchor;
+  if (!a) return null;
+  const parts = a.split('-').map(Number);
+  if (parts.length !== 3) return null;
+  const dt = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 12));
+  dt.setUTCDate(dt.getUTCDate() + (d - state.axis.start));
+  return dt;
+}
+function fmtDate(dt) {
+  if (!dt) return '';
+  const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return `${dayNames[dt.getUTCDay()]} ${dt.getUTCDate()} ${monthNames[dt.getUTCMonth()]}`;
+}
+function isWeekend(dt) { return dt && (dt.getUTCDay() === 0 || dt.getUTCDay() === 6); }
+function pctFor(day) {
+  const span = state.axis.end - state.axis.start;
+  if (span <= 0) return 0;
+  return ((day - state.axis.start) / span) * 100;
+}
+function escHTML(s) { return String(s ?? '').replace(/[&<>]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch])); }
+function escAttr(s) { return String(s ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])); }
+
+// =========================================================
+//  RENDER (cohorts / timeline / phases / notes)
+// =========================================================
+function renderAll() {
+  document.getElementById('title').textContent = state.title;
+  document.getElementById('subtitle').textContent = state.subtitle;
+  document.getElementById('axis-start').value = state.axis.start;
+  document.getElementById('axis-end').value = state.axis.end;
+  document.getElementById('age-offset').value = state.axis.ageOffset ?? '';
+  document.getElementById('calendar-anchor').value = state.axis.calendarAnchor ?? '';
+  renderCohorts();
+  renderTimeline();
+  renderPhases();
+  renderNotes();
+}
+
+function renderCohorts() {
+  const c = document.getElementById('cohort-list');
+  const groups = [...new Set(state.cohorts.map(co => co.group).filter(Boolean))];
+  const datalist = `<datalist id="group-options">${groups.map(g => `<option value="${escAttr(g)}">`).join('')}</datalist>`;
+  c.innerHTML = datalist + state.cohorts.map(co => {
+    // compute Day 1 calendar date hint from DOB + ageOffset
+    let dobHint = '';
+    let hintIsWeekend = false;
+    if (co.dateOfBirth && state.axis.ageOffset !== null && state.axis.ageOffset !== '' && !isNaN(state.axis.ageOffset)) {
+      const parts = co.dateOfBirth.split('-').map(Number);
+      if (parts.length === 3) {
+        const dt = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 12));
+        dt.setUTCDate(dt.getUTCDate() + parseInt(state.axis.ageOffset));
+        dobHint = `→ Day 1: ${fmtDate(dt)} ${dt.getUTCFullYear()}`;
+        hintIsWeekend = isWeekend(dt);
+      }
+    }
+    const offsetClass = co.dateOfBirth ? 'ic-offset derived' : 'ic-offset';
+    const offsetTitle = co.dateOfBirth
+      ? 'Auto-derived from DOB (clear DOB to edit manually)'
+      : 'Day offset: shift this cohort\'s phases by N days on the global axis';
+    return `
+    <div class="cohort-row" data-id="${co.id}">
+      <input type="color" class="cohort-color" value="${co.color}" oninput="updCohort('${co.id}','color',this.value)">
+      <input type="text" class="ic-name" value="${escAttr(co.name)}" oninput="updCohort('${co.id}','name',this.value)" placeholder="Cohort name">
+      <input type="text" class="ic-geno" value="${escAttr(co.genotype)}" oninput="updCohort('${co.id}','genotype',this.value)" placeholder="Genotype / strain">
+      <input type="text" class="ic-role" value="${escAttr(co.role)}" oninput="updCohort('${co.id}','role',this.value)" placeholder="Role">
+      <input type="text" class="ic-group" value="${escAttr(co.group||'')}" list="group-options" onchange="updCohort('${co.id}','group',this.value)" placeholder="Group">
+      <span class="ic-n-label">n =</span>
+      <input type="number" min="0" value="${co.n}" oninput="updCohort('${co.id}','n',parseInt(this.value)||0)">
+      <span class="ic-n-label" title="Date of birth (litter DOB) — sets the cohort's calendar timing automatically">DOB</span>
+      <input type="date" class="ic-dob" value="${co.dateOfBirth||''}" onchange="updCohort('${co.id}','dateOfBirth',this.value)" title="Optional — if set, the cohort's Day 1 calendar date = DOB + (P-age offset). Δd auto-computes from the difference between cohort DOBs.">
+      <span class="dob-hint${hintIsWeekend?' weekend':''}" title="Cohort's Day 1 calendar date (computed from DOB + P-age)">${dobHint}</span>
+      <span class="ic-n-label" title="${offsetTitle}">Δd =</span>
+      <input type="number" class="${offsetClass}" value="${co.dayOffset||0}" oninput="updCohort('${co.id}','dayOffset',parseInt(this.value)||0)" title="${offsetTitle}">
+      <button class="x-btn" title="Bulk-shift cohort by N days" onclick="shiftCohort('${co.id}')" style="color:var(--accent);">⇄</button>
+      <button class="x-btn" title="Duplicate cohort" onclick="dupCohort('${co.id}')" style="color:var(--accent);">⎘</button>
+      <button class="x-btn" title="Remove cohort" onclick="delCohort('${co.id}')">×</button>
+    </div>`;
+  }).join('');
+}
+
+function renderTimeline() {
+  const tl = document.getElementById('timeline');
+  const start = state.axis.start;
+  const end = state.axis.end;
+  const span = Math.max(1, end - start);
+
+  const stepRaw = span / 10;
+  const niceSteps = [1, 2, 5, 7, 10, 14, 20, 30, 50, 60, 90];
+  const step = niceSteps.find(s => s >= stepRaw) || Math.ceil(stepRaw);
+  const ticks = [];
+  for (let d = start; d <= end; d += step) ticks.push(d);
+  if (ticks[ticks.length - 1] !== end) ticks.push(end);
+
+  const hasDate = !!state.axis.calendarAnchor;
+
+  let axisHTML = ticks.map(d => {
+    const left = pctFor(d);
+    const age = dayToAge(d);
+    const dt = dayToDate(d);
+    const dateLabel = dt ? fmtDate(dt) : '';
+    const weekendCls = isWeekend(dt) ? ' weekend' : '';
+    return `<div class="day-tick" style="left:${left}%">
+      <div class="tick-day">D${d}</div>
+      ${age ? `<div class="tick-age">${age}</div>` : ''}
+      ${dateLabel ? `<div class="tick-date${weekendCls}">${dateLabel}</div>` : ''}
+      <div class="tick-line"></div>
+    </div>`;
+  }).join('');
+
+  const seenGroups = [];
+  state.cohorts.forEach(co => {
+    const g = co.group || `__solo_${co.id}`;
+    if (!seenGroups.includes(g)) seenGroups.push(g);
+  });
+
+  const renderTrack = co => {
+    const off = co.dayOffset || 0;
+    const phaseBars = state.phases
+      .filter(p => p.cohortIds.includes(co.id))
+      .map(p => {
+        const absStart = p.startDay + off;
+        const absEnd = absStart + Math.max(1, p.duration);
+        const left = pctFor(absStart);
+        const dayLabel = p.duration > 1 ? `D${absStart}–D${absEnd-1}` : `D${absStart}`;
+        const dt0 = dayToDate(absStart);
+        const dtEnd = dayToDate(absEnd-1);
+        const dateHint = dt0 ? ` · ${fmtDate(dt0)}${p.duration>1 && dtEnd ? ` → ${fmtDate(dtEnd)}` : ''}` : '';
+        if (p.shape === 'endpoint' || p.duration <= 0) {
+          return `<div class="phase-bar endpoint" style="left:${left}%; transform:translateX(-50%); background:${p.color}" title="${escAttr(p.name + ' · ' + dayLabel + dateHint)}" onclick="scrollToPhase('${p.id}')">${p.icon||''}</div>`;
+        }
+        const widthPct = pctFor(absEnd) - left;
+        const tools = (p.tools && p.tools.length) ? '<span class="tool-dot"></span>' : '';
+        return `<div class="phase-bar" style="left:${left}%; width:${widthPct}%; background:${p.color}" title="${escAttr(p.name + ' · ' + dayLabel + dateHint)}" onclick="scrollToPhase('${p.id}')">
+          <span class="ph-icon">${p.icon||''}</span><span style="overflow:hidden;text-overflow:ellipsis">${escHTML(p.name)}</span>${tools}
+        </div>`;
+      }).join('');
+    const offPill = off ? `<span class="offset-pill">${off>0?'+':''}${off} d</span>` : '';
+    return `<div class="cohort-track">
+      <div class="cohort-track-label" style="border-color:${co.color}; color:${co.color}">${escHTML(co.name)} · n=${co.n}${offPill}</div>
+      ${phaseBars}
+    </div>`;
+  };
+
+  let bodyHTML = '';
+  seenGroups.forEach(g => {
+    const cohortsInGroup = state.cohorts.filter(co => (co.group || `__solo_${co.id}`) === g);
+    if (cohortsInGroup.length === 0) return;
+    const showHeader = !g.startsWith('__solo_') && cohortsInGroup[0].group;
+    if (showHeader) bodyHTML += `<div class="group-header">${escHTML(cohortsInGroup[0].group)}</div>`;
+    cohortsInGroup.forEach(co => { bodyHTML += renderTrack(co); });
+  });
+
+  tl.innerHTML = `<div class="day-axis${hasDate?' with-date':''}">${axisHTML}</div>${bodyHTML}`;
+}
+
+function renderPhases() {
+  const c = document.getElementById('phase-list');
+  if (state.phases.length === 0) {
+    c.innerHTML = '<p style="font-size:13px;color:var(--muted);font-style:italic;">No phases yet — click "+ Add phase".</p>';
+    return;
+  }
+  const sorted = [...state.phases].sort((a,b) => a.startDay - b.startDay);
+  c.innerHTML = sorted.map(p => {
+    const cohortPills = state.cohorts.map(co => {
+      const active = p.cohortIds.includes(co.id);
+      const off = co.dayOffset || 0;
+      const absStart = p.startDay + off;
+      const absEnd = absStart + Math.max(1, p.duration) - 1;
+      const dayHint = active ? `D${absStart}${p.duration>1?`–${absEnd}`:''}` : '';
+      const dt0 = dayToDate(absStart);
+      const dateHint = (active && dt0) ? `\n${fmtDate(dt0)}${p.duration>1 ? ` → ${fmtDate(dayToDate(absEnd))}` : ''}` : '';
+      return `<span class="cohort-pill ${active?'active':''}" style="${active?`background:${co.color};`:''}" onclick="toggleCohort('${p.id}','${co.id}')" title="${active?`${dayHint}${dateHint}`:'Click to add this cohort'}">${escHTML(co.name)}${active && off ? ` <small style="opacity:0.85;">${dayHint}</small>`:''}</span>`;
+    }).join('');
+    const toolsHTML = (p.tools||[]).map((t, i) => `
+      <div class="tool-row">
+        <input type="text" placeholder="Tool label" value="${escAttr(t.label)}" onchange="updTool('${p.id}',${i},'label',this.value)">
+        <input type="text" placeholder="filename.html or URL" value="${escAttr(t.file)}" onchange="updTool('${p.id}',${i},'file',this.value)">
+        <a class="tool-link-btn" href="${escAttr(t.file)}" target="_blank" rel="noopener">↗ Open</a>
+        <button class="x-btn" onclick="removeTool('${p.id}',${i})">×</button>
+      </div>
+    `).join('');
+    const toolButtons = (p.tools||[]).filter(t=>t.file).map(t =>
+      `<a class="tool-button" href="${escAttr(t.file)}" target="_blank" rel="noopener">↗ ${escHTML(t.label||t.file)}</a>`
+    ).join('');
+    const hasOffset = state.cohorts.some(co => p.cohortIds.includes(co.id) && (co.dayOffset||0) !== 0);
+    return `
+      <div class="phase-card" style="border-left-color:${p.color}">
+        <div class="phase-head" onclick="togglePhaseBody(this)">
+          <span class="phase-icon">${p.icon||'◇'}</span>
+          <span class="phase-name">${escHTML(p.name)}</span>
+          <span class="phase-days">${hasOffset ? 'rel ' : ''}D${p.startDay}${p.duration>1?` – D${p.startDay+p.duration-1}`:''} · ${p.duration} d</span>
+          ${state.cohorts.filter(co=>p.cohortIds.includes(co.id)).map(co=>`<span class="phase-cohorts" style="border-left:3px solid ${co.color};padding-left:6px;">${escHTML(co.name)}</span>`).join('')}
+          <button class="x-btn" onclick="event.stopPropagation();dupPhase('${p.id}')" title="Duplicate phase" style="color:var(--accent);">⎘</button>
+          <button class="x-btn" onclick="event.stopPropagation();delPhase('${p.id}')" title="Delete phase">×</button>
+        </div>
+        <div class="phase-body">
+          <div class="phase-fields">
+            <label>Name<input type="text" value="${escAttr(p.name)}" onchange="updPhase('${p.id}','name',this.value)"></label>
+            <label>Icon (emoji)<input type="text" maxlength="3" value="${escAttr(p.icon||'')}" onchange="updPhase('${p.id}','icon',this.value)"></label>
+            <label>Colour<input type="color" value="${p.color}" oninput="updPhase('${p.id}','color',this.value)"></label>
+            <label>Start day (relative)<input type="number" value="${p.startDay}" onchange="updPhase('${p.id}','startDay',parseInt(this.value)||0)"></label>
+            <label>Duration (d)<input type="number" min="0" value="${p.duration}" onchange="updPhase('${p.id}','duration',parseInt(this.value)||0)"></label>
+            <label>Shape<select onchange="updPhase('${p.id}','shape',this.value)">
+              <option value="bar" ${p.shape==='bar'?'selected':''}>Bar</option>
+              <option value="endpoint" ${p.shape==='endpoint'?'selected':''}>Endpoint marker</option>
+            </select></label>
+          </div>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:4px;">Cohorts (hover for absolute days &amp; dates)</label>
+          <div class="cohort-pills">${cohortPills}</div>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin:10px 0 4px;">Details</label>
+          <textarea onchange="updPhase('${p.id}','details',this.value)" placeholder="Protocol details…">${escHTML(p.details||'')}</textarea>
+          <label style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;display:block;margin:10px 0 4px;">Attached tools</label>
+          <div class="tools-list">${toolsHTML}</div>
+          <button class="add-btn" onclick="addTool('${p.id}')">+ Add tool</button>
+          ${toolButtons ? `<div class="tool-buttons">${toolButtons}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function renderNotes() {
+  const c = document.getElementById('notes-list');
+  if (state.notes.length === 0) {
+    c.innerHTML = '<p style="font-size:13px;color:var(--muted);font-style:italic;">No notes yet.</p>';
+    return;
+  }
+  c.innerHTML = state.notes.map((n, i) => `
+    <div class="note">
+      <span class="note-text" contenteditable="true" oninput="updNote(${i},this.textContent)">${escHTML(n)}</span>
+      <button class="x-btn" onclick="delNote(${i})">×</button>
+    </div>
+  `).join('');
+}
+
+// =========================================================
+//  STATE MUTATIONS
+// =========================================================
+function updTitle() { state.title = document.getElementById('title').textContent; dirty(); }
+function updSubtitle() { state.subtitle = document.getElementById('subtitle').textContent; dirty(); }
+function updateAxis() {
+  state.axis.start = parseInt(document.getElementById('axis-start').value) || 1;
+  state.axis.end = parseInt(document.getElementById('axis-end').value) || 1;
+  const off = document.getElementById('age-offset').value;
+  const newAgeOffset = off === '' ? null : parseInt(off);
+  const ageChanged = newAgeOffset !== state.axis.ageOffset;
+  state.axis.ageOffset = newAgeOffset;
+  const ca = document.getElementById('calendar-anchor').value;
+  state.axis.calendarAnchor = ca || null;
+  // if cohorts have DOBs and age changed, re-derive offsets + anchor
+  if (ageChanged && state.cohorts.some(c => c.dateOfBirth)) {
+    computeOffsetsFromDOBs();
+    document.getElementById('calendar-anchor').value = state.axis.calendarAnchor || '';
+  }
+  renderCohorts(); renderTimeline(); renderPhases(); dirty();
+}
+
+// If any cohort has a DOB and ageOffset is set, derive:
+//   - each cohort's "Day 1" calendar date = DOB + ageOffset days
+//   - axis.calendarAnchor = earliest of those (anchor follows the earliest litter)
+//   - cohort.dayOffset = (its Day 1 - earliest Day 1) in days
+// Cohorts without a DOB keep their manually-set dayOffset.
+function computeOffsetsFromDOBs() {
+  const ageOff = state.axis.ageOffset;
+  if (ageOff === null || ageOff === '' || isNaN(ageOff)) return;
+  const withDOB = state.cohorts.filter(co => co.dateOfBirth);
+  if (withDOB.length === 0) return;
+
+  const day1ForCohort = co => {
+    const parts = co.dateOfBirth.split('-').map(Number);
+    if (parts.length !== 3) return null;
+    const dt = new Date(Date.UTC(parts[0], parts[1]-1, parts[2], 12));
+    dt.setUTCDate(dt.getUTCDate() + parseInt(ageOff));
+    return dt;
+  };
+
+  let earliest = null;
+  withDOB.forEach(co => {
+    const d1 = day1ForCohort(co);
+    if (d1 && (!earliest || d1 < earliest)) earliest = d1;
+  });
+  if (!earliest) return;
+
+  const yyyy = earliest.getUTCFullYear();
+  const mm = pad2(earliest.getUTCMonth() + 1);
+  const dd = pad2(earliest.getUTCDate());
+  state.axis.calendarAnchor = `${yyyy}-${mm}-${dd}`;
+
+  withDOB.forEach(co => {
+    const d1 = day1ForCohort(co);
+    if (!d1) return;
+    const diffDays = Math.round((d1 - earliest) / 86400000);
+    co.dayOffset = diffDays;
+  });
+}
+function autoExtendAxis() {
+  let maxAbs = state.axis.end;
+  state.cohorts.forEach(co => {
+    state.phases.forEach(p => {
+      if (!p.cohortIds.includes(co.id)) return;
+      const end = p.startDay + (co.dayOffset || 0) + Math.max(1, p.duration);
+      if (end > maxAbs) maxAbs = end;
+    });
+  });
+  if (maxAbs > state.axis.end) {
+    state.axis.end = maxAbs;
+    document.getElementById('axis-end').value = state.axis.end;
+  }
+}
+function addCohort() {
+  const colors = ['#3498DB','#E67E22','#27AE60','#9B59B6','#E91E63','#16A085','#7F8C8D'];
+  const c = colors[state.cohorts.length % colors.length];
+  state.cohorts.push({ id: uid(), name: `Cohort ${state.cohorts.length+1}`, genotype: '', role: '', n: 5, color: c, group: '', dayOffset: 0, dateOfBirth: null });
+  renderCohorts(); renderTimeline(); renderPhases(); dirty();
+}
+function dupCohort(id) {
+  const co = state.cohorts.find(c => c.id === id); if (!co) return;
+  const copy = { ...co, id: uid(), name: co.name + ' (copy)' };
+  const idx = state.cohorts.findIndex(c => c.id === id);
+  state.cohorts.splice(idx + 1, 0, copy);
+  state.phases.forEach(p => { if (p.cohortIds.includes(id)) p.cohortIds.push(copy.id); });
+  renderCohorts(); renderTimeline(); renderPhases(); dirty();
+}
+function shiftCohort(id) {
+  const co = state.cohorts.find(c => c.id === id); if (!co) return;
+  const v = prompt(`Shift "${co.name}" by how many days? (positive = later, negative = earlier)\nCurrent offset: ${co.dayOffset||0} d`, '0');
+  if (v === null) return;
+  const delta = parseInt(v); if (isNaN(delta)) return;
+  co.dayOffset = (co.dayOffset || 0) + delta;
+  autoExtendAxis();
+  renderCohorts(); renderTimeline(); renderPhases(); dirty();
+}
+function updCohort(id, key, val) {
+  const co = state.cohorts.find(c=>c.id===id); if (!co) return;
+  co[key] = (key === 'dateOfBirth' && val === '') ? null : val;
+  if (key === 'dateOfBirth') {
+    computeOffsetsFromDOBs();
+    document.getElementById('calendar-anchor').value = state.axis.calendarAnchor || '';
+    autoExtendAxis();
+    renderCohorts(); renderTimeline(); renderPhases();
+  } else {
+    if (key === 'dayOffset' || key === 'group') autoExtendAxis();
+    renderTimeline();
+    if (key === 'name' || key === 'color' || key === 'dayOffset') renderPhases();
+    if (key === 'group') renderCohorts();
+  }
+  dirty();
+}
+function delCohort(id) {
+  if (!confirm('Remove this cohort?')) return;
+  state.cohorts = state.cohorts.filter(c=>c.id!==id);
+  state.phases.forEach(p => p.cohortIds = p.cohortIds.filter(cid=>cid!==id));
+  renderCohorts(); renderTimeline(); renderPhases(); dirty();
+}
+function addPhaseFromPreset(key) {
+  const preset = PHASE_PRESETS[key];
+  const allCohortIds = state.cohorts.map(c=>c.id);
+  const lastEnd = state.phases.reduce((m,p) => Math.max(m, p.startDay + p.duration - 1), state.axis.start - 1);
+  const startDay = Math.max(state.axis.start, lastEnd + 1);
+  const phase = {
+    id: uid(), name: preset.name, icon: preset.icon, color: preset.color,
+    startDay, duration: preset.duration, shape: preset.shape || 'bar',
+    cohortIds: allCohortIds, details: preset.details, tools: preset.suggestedTool ? [preset.suggestedTool] : []
+  };
+  state.phases.push(phase);
+  autoExtendAxis();
+  closeModal('preset-modal');
+  renderTimeline(); renderPhases();
+  setTimeout(() => scrollToPhase(phase.id), 50);
+  dirty();
+}
+function delPhase(id) {
+  if (!confirm('Delete this phase?')) return;
+  state.phases = state.phases.filter(p=>p.id!==id);
+  renderTimeline(); renderPhases(); dirty();
+}
+function dupPhase(id) {
+  const p = state.phases.find(p=>p.id===id); if (!p) return;
+  const copy = { ...p, id: uid(), tools: (p.tools||[]).map(t => ({...t})), cohortIds: [...p.cohortIds] };
+  const idx = state.phases.findIndex(ph => ph.id === id);
+  state.phases.splice(idx + 1, 0, copy);
+  renderTimeline(); renderPhases(); dirty();
+}
+function updPhase(id, key, val) {
+  const p = state.phases.find(p=>p.id===id); if (!p) return;
+  p[key] = val;
+  if (key === 'startDay' || key === 'duration') autoExtendAxis();
+  renderTimeline(); renderPhases(); dirty();
+}
+function toggleCohort(phaseId, cohortId) {
+  const p = state.phases.find(p=>p.id===phaseId); if (!p) return;
+  if (p.cohortIds.includes(cohortId)) p.cohortIds = p.cohortIds.filter(c=>c!==cohortId);
+  else p.cohortIds.push(cohortId);
+  renderTimeline(); renderPhases(); dirty();
+}
+function addTool(phaseId) {
+  const p = state.phases.find(p=>p.id===phaseId); if (!p) return;
+  p.tools = p.tools || [];
+  p.tools.push({ label: 'New tool', file: '' });
+  renderPhases(); dirty();
+}
+function removeTool(phaseId, idx) {
+  const p = state.phases.find(p=>p.id===phaseId); if (!p) return;
+  p.tools.splice(idx, 1);
+  renderPhases(); dirty();
+}
+function updTool(phaseId, idx, key, val) {
+  const p = state.phases.find(p=>p.id===phaseId); if (!p) return;
+  if (!p.tools[idx]) return;
+  p.tools[idx][key] = val;
+  dirty();
+}
+function addNote() { state.notes.push('New note — click to edit.'); renderNotes(); dirty(); }
+function updNote(i, val) { state.notes[i] = val; dirty(); }
+function delNote(i) { state.notes.splice(i,1); renderNotes(); dirty(); }
+function togglePhaseBody(headEl) { headEl.closest('.phase-card').classList.toggle('collapsed'); }
+function scrollToPhase(id) {
+  renderPhases();
+  setTimeout(() => {
+    const cards = document.querySelectorAll('.phase-card');
+    cards.forEach(c => c.classList.add('collapsed'));
+    cards.forEach(c => {
+      if (c.querySelector(`[onclick*="${id}"]`)) {
+        c.classList.remove('collapsed');
+        c.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    });
+  }, 50);
+}
+
+// =========================================================
+//  MODALS
+// =========================================================
+function openPresetModal() {
+  const grid = document.getElementById('preset-grid');
+  grid.innerHTML = Object.entries(PHASE_PRESETS).map(([key, p]) => `
+    <button class="preset-tile" onclick="addPhaseFromPreset('${key}')">
+      <div class="pt-icon" style="color:${p.color}">${p.icon}</div>
+      <div class="pt-name">${escHTML(p.name)}</div>
+      <div class="pt-desc">${escHTML(p.desc)}</div>
+    </button>
+  `).join('');
+  document.getElementById('preset-modal').classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+// =========================================================
+//  CALENDAR EXPORT (.ics)
+// =========================================================
+function openCalendarExport() {
+  const warnBox = document.getElementById('cal-warning-box');
+  const anchorInfo = document.getElementById('cal-anchor-info');
+  const list = document.getElementById('cal-cohort-list');
+  const exportBtn = document.getElementById('cal-export-btn');
+
+  warnBox.innerHTML = '';
+  if (!state.axis.calendarAnchor) {
+    warnBox.innerHTML = `<div class="cal-warning"><b>Set a "Day 1 calendar date" first.</b> Export needs a real anchor date — set it in the Timeline controls and re-open this dialog.</div>`;
+    list.innerHTML = '';
+    document.getElementById('cal-summary').textContent = '';
+    exportBtn.disabled = true;
+    document.getElementById('calendar-modal').classList.add('open');
+    return;
+  }
+  exportBtn.disabled = false;
+
+  const anchor = dayToDate(state.axis.start);
+  anchorInfo.innerHTML = `Day 1 anchor: <b>${fmtDate(anchor)} ${anchor.getUTCFullYear()}</b> · timeline range D${state.axis.start}–D${state.axis.end}`;
+
+  // group cohorts by group label, same as timeline
+  const seenGroups = [];
+  state.cohorts.forEach(co => {
+    const g = co.group || `__solo_${co.id}`;
+    if (!seenGroups.includes(g)) seenGroups.push(g);
+  });
+  let listHTML = '';
+  seenGroups.forEach(g => {
+    const inGroup = state.cohorts.filter(co => (co.group || `__solo_${co.id}`) === g);
+    if (inGroup.length === 0) return;
+    if (!g.startsWith('__solo_') && inGroup[0].group) {
+      listHTML += `<div class="group-header" style="margin-top:8px;">${escHTML(inGroup[0].group)}</div>`;
+    }
+    inGroup.forEach(co => {
+      const phaseCount = state.phases.filter(p => p.cohortIds.includes(co.id)).length;
+      listHTML += `
+        <label class="cal-cohort-row">
+          <input type="checkbox" value="${co.id}" checked onchange="updateCalSummary()">
+          <span class="cal-color" style="background:${co.color}"></span>
+          <span class="cal-name">${escHTML(co.name)}</span>
+          <span class="cal-meta">· n=${co.n}${(co.dayOffset||0)?`, Δd ${co.dayOffset>0?'+':''}${co.dayOffset}`:''} · ${phaseCount} phases</span>
+        </label>`;
+    });
+  });
+  list.innerHTML = listHTML;
+  updateCalSummary();
+  document.getElementById('calendar-modal').classList.add('open');
+}
+
+function getSelectedExportCohorts() {
+  const cbs = document.querySelectorAll('#cal-cohort-list input[type=checkbox]');
+  return Array.from(cbs).filter(cb => cb.checked).map(cb => cb.value);
+}
+
+function updateCalSummary() {
+  if (!state.axis.calendarAnchor) return;
+  const selected = getSelectedExportCohorts();
+  const banner = document.getElementById('cal-opt-banner').checked;
+  let eventCount = 0;
+  state.phases.forEach(p => {
+    state.cohorts.forEach(co => {
+      if (!selected.includes(co.id)) return;
+      if (!p.cohortIds.includes(co.id)) return;
+      if (banner || p.duration <= 1 || p.shape === 'endpoint') eventCount += 1;
+      else eventCount += p.duration;
+    });
+  });
+  document.getElementById('cal-summary').innerHTML =
+    `Will export <b>${eventCount}</b> event${eventCount===1?'':'s'} for <b>${selected.length}</b> cohort${selected.length===1?'':'s'}.`;
+}
+document.addEventListener('change', e => {
+  if (e.target && (e.target.id === 'cal-opt-banner' || e.target.id === 'cal-opt-details')) updateCalSummary();
+});
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function dayToICalDate(d) {
+  const dt = dayToDate(d);
+  if (!dt) return null;
+  return `${dt.getUTCFullYear()}${pad2(dt.getUTCMonth()+1)}${pad2(dt.getUTCDate())}`;
+}
+function nowICalUTC() {
+  const n = new Date();
+  return `${n.getUTCFullYear()}${pad2(n.getUTCMonth()+1)}${pad2(n.getUTCDate())}T${pad2(n.getUTCHours())}${pad2(n.getUTCMinutes())}${pad2(n.getUTCSeconds())}Z`;
+}
+function escapeICal(s) {
+  return String(s ?? '')
+    .replace(/\\/g, '\\\\')
+    .replace(/;/g, '\\;')
+    .replace(/,/g, '\\,')
+    .replace(/\r/g, '')
+    .replace(/\n/g, '\\n');
+}
+function foldLine(line) {
+  // RFC 5545: lines limited to 75 octets; continuation lines start with a single space
+  if (line.length <= 75) return line;
+  const out = [];
+  let s = line;
+  out.push(s.slice(0, 75));
+  s = s.slice(75);
+  while (s.length > 74) {
+    out.push(' ' + s.slice(0, 74));
+    s = s.slice(74);
+  }
+  if (s.length) out.push(' ' + s);
+  return out.join('\r\n');
+}
+
+function buildEvent({ uid, dtstamp, startDate, endDate, summary, description, categories }) {
+  return [
+    'BEGIN:VEVENT',
+    foldLine(`UID:${uid}`),
+    `DTSTAMP:${dtstamp}`,
+    `DTSTART;VALUE=DATE:${startDate}`,
+    `DTEND;VALUE=DATE:${endDate}`,
+    foldLine(`SUMMARY:${escapeICal(summary)}`),
+    foldLine(`DESCRIPTION:${escapeICal(description)}`),
+    foldLine(`CATEGORIES:${escapeICal(categories)}`),
+    'TRANSP:TRANSPARENT',
+    'END:VEVENT'
+  ].join('\r\n');
+}
+
+function nextDayISO(yyyymmdd) {
+  // input: 'YYYYMMDD'; returns same format for next day (UTC)
+  const y = +yyyymmdd.slice(0,4), m = +yyyymmdd.slice(4,6), d = +yyyymmdd.slice(6,8);
+  const dt = new Date(Date.UTC(y, m-1, d));
+  dt.setUTCDate(dt.getUTCDate() + 1);
+  return `${dt.getUTCFullYear()}${pad2(dt.getUTCMonth()+1)}${pad2(dt.getUTCDate())}`;
+}
+
+function generateICS(selectedCohortIds, opts) {
+  const dtstamp = nowICalUTC();
+  const events = [];
+
+  state.phases.forEach(p => {
+    state.cohorts.forEach(co => {
+      if (!selectedCohortIds.includes(co.id)) return;
+      if (!p.cohortIds.includes(co.id)) return;
+
+      const off = co.dayOffset || 0;
+      const absStart = p.startDay + off;
+      const dur = Math.max(1, p.duration);
+      const isEndpoint = p.shape === 'endpoint' || p.duration <= 1;
+      const useBanner = opts.banner || isEndpoint || dur === 1;
+
+      const baseDescription = (() => {
+        const lines = [];
+        lines.push(`Phase: ${p.name}`);
+        lines.push(`Cohort: ${co.name}${co.role ? ` (${co.role})` : ''}${co.n ? ` · n=${co.n}` : ''}${co.genotype ? ` · ${co.genotype}` : ''}`);
+        if (off) lines.push(`Cohort offset: ${off > 0 ? '+' : ''}${off} d`);
+        if (dur > 1) lines.push(`Day ${p.startDay}–${p.startDay+dur-1} (${dur} d, relative to cohort start)`);
+        else lines.push(`Day ${p.startDay} (relative to cohort start)`);
+        if (opts.details) {
+          if (p.details) { lines.push(''); lines.push(p.details); }
+          if (p.tools && p.tools.length) {
+            lines.push(''); lines.push('Attached tools:');
+            p.tools.forEach(t => lines.push(`• ${t.label || t.file}${t.file ? ` — ${t.file}` : ''}`));
+          }
+        }
+        return lines.join('\n');
+      })();
+      const categories = [co.group, co.name, p.name].filter(Boolean).join(',');
+
+      if (useBanner) {
+        const startISO = dayToICalDate(absStart);
+        const endISO = dayToICalDate(absStart + dur);     // exclusive
+        if (!startISO) return;
+        const summary = isEndpoint
+          ? `${p.icon ? p.icon + ' ' : ''}${p.name} — ${co.name}`
+          : `${p.icon ? p.icon + ' ' : ''}${p.name} — ${co.name} (${dur} d)`;
+        events.push(buildEvent({
+          uid: `${p.id}_${co.id}@expt-timeline`,
+          dtstamp,
+          startDate: startISO,
+          endDate: endISO,
+          summary,
+          description: baseDescription,
+          categories
+        }));
+      } else {
+        // one event per day
+        for (let i = 0; i < dur; i++) {
+          const startISO = dayToICalDate(absStart + i);
+          if (!startISO) continue;
+          const endISO = nextDayISO(startISO);
+          const summary = `${p.icon ? p.icon + ' ' : ''}${p.name} — ${co.name} (Day ${i+1}/${dur})`;
+          events.push(buildEvent({
+            uid: `${p.id}_${co.id}_d${i+1}@expt-timeline`,
+            dtstamp,
+            startDate: startISO,
+            endDate: endISO,
+            summary,
+            description: baseDescription + `\n(Day ${i+1} of ${dur})`,
+            categories
+          }));
+        }
+      }
+    });
+  });
+
+  const ical = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Experiment Timeline Maker v2//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    foldLine(`X-WR-CALNAME:${escapeICal(state.title || 'Experiment timeline')}`),
+    foldLine(`X-WR-CALDESC:${escapeICal(state.subtitle || '')}`),
+    ...events,
+    'END:VCALENDAR'
+  ].join('\r\n');
+
+  return ical;
+}
+
+function doCalendarExport() {
+  const selected = getSelectedExportCohorts();
+  if (selected.length === 0) { alert('Select at least one cohort to export.'); return; }
+  if (!state.axis.calendarAnchor) { alert('Please set a "Day 1 calendar date" first.'); return; }
+
+  const opts = {
+    banner: document.getElementById('cal-opt-banner').checked,
+    details: document.getElementById('cal-opt-details').checked
+  };
+  const ics = generateICS(selected, opts);
+  const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = (state.title || 'experiment').replace(/[^a-z0-9]+/gi, '_').slice(0, 40);
+  a.href = url;
+  a.download = `${safeName}_${new Date().toISOString().slice(0,10)}.ics`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  closeModal('calendar-modal');
+}
+
+// =========================================================
+//  IMPORT / EXPORT JSON / RESET / TEMPLATES
+// =========================================================
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = (state.title || 'experiment').replace(/[^a-z0-9]+/gi, '_').slice(0, 40);
+  a.href = url; a.download = `${safeName}_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+function importJSON(ev) {
+  const file = ev.target.files[0]; if (!file) return;
+  const r = new FileReader();
+  r.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.phases || !data.cohorts) throw new Error('Not a timeline file');
+      state = migrateState(data);
+      renderAll(); dirty();
+    } catch (err) { alert('Could not import: ' + err.message); }
+  };
+  r.readAsText(file);
+  ev.target.value = '';
+}
+function resetToDefault() {
+  if (!confirm('Clear everything and start over?')) return;
+  state = defaultState();
+  renderAll(); dirty();
+}
+function loadMyrfTemplate() {
+  if (state.phases.length > 0 && !confirm('Replace current timeline with the Myrf Cohort 1 template?')) return;
+  state = myrfTemplate();
+  renderAll(); dirty();
+}
+function loadAgingTemplate() {
+  if (state.phases.length > 0 && !confirm('Replace current timeline with the aging-cohort example?')) return;
+  state = {
+    title: 'Aging cohorts — same induction, different endpoints',
+    subtitle: 'Adult and aged groups share tamoxifen induction. Aged cohort housed until late collection.',
+    axis: { start: 1, end: 380, ageOffset: 75, calendarAnchor: null },
+    cohorts: [
+      { id: 'adult-ko',  name: 'Adult KO',  genotype: 'Pdgfrα-CreERT2; Myrf^fl/fl', role: 'Knockout', n: 5, color: '#3498DB', group: 'Adult (collect ~P98)', dayOffset: 0 },
+      { id: 'adult-ctl', name: 'Adult Ctrl', genotype: 'Cre-negative littermates', role: 'Control', n: 5, color: '#7F8C8D', group: 'Adult (collect ~P98)', dayOffset: 0 },
+      { id: 'aged-ko',   name: 'Aged KO',   genotype: 'Pdgfrα-CreERT2; Myrf^fl/fl', role: 'Knockout', n: 5, color: '#1B4F72', group: 'Aged (collect ~P450)', dayOffset: 0 },
+      { id: 'aged-ctl',  name: 'Aged Ctrl', genotype: 'Cre-negative littermates', role: 'Control', n: 5, color: '#34495E', group: 'Aged (collect ~P450)', dayOffset: 0 }
+    ],
+    phases: [
+      { id: 'tam', name: 'Tamoxifen', icon: '💊', color: '#E67E22', startDay: 1, duration: 4, shape: 'bar',
+        cohortIds: ['adult-ko','adult-ctl','aged-ko','aged-ctl'],
+        details: '180 mg/kg, oral gavage × 4 days · 30 mg/mL in 10% EtOH / 90% corn oil',
+        tools: [{ label: 'Tamoxifen calculator', file: 'tamoxifen_calculator.html' }] },
+      { id: 'edu', name: 'EdU (drinking water)', icon: '🧬', color: '#27AE60', startDay: 5, duration: 10, shape: 'bar',
+        cohortIds: ['adult-ko','adult-ctl','aged-ko','aged-ctl'],
+        details: 'EdU 0.2 mg/mL in drinking water × 10 days', tools: [] },
+      { id: 'wheel-adult', name: 'Complex wheel', icon: '🏃', color: '#3498DB', startDay: 15, duration: 8, shape: 'bar',
+        cohortIds: ['adult-ko','adult-ctl'], details: 'Complex running wheel × 8 days (adult cohort only)', tools: [] },
+      { id: 'perf-adult', name: 'Adult perfusion', icon: '⚕', color: '#C0392B', startDay: 23, duration: 1, shape: 'endpoint',
+        cohortIds: ['adult-ko','adult-ctl'], details: 'Perfusion at ~P98', tools: [] },
+      { id: 'aging', name: 'Aging in home cage', icon: '🛌', color: '#BDC3C7', startDay: 15, duration: 360, shape: 'bar',
+        cohortIds: ['aged-ko','aged-ctl'], details: 'Animals housed in home cages with monthly welfare checks until late collection.', tools: [] },
+      { id: 'wheel-aged', name: 'Complex wheel', icon: '🏃', color: '#3498DB', startDay: 370, duration: 8, shape: 'bar',
+        cohortIds: ['aged-ko','aged-ctl'], details: 'Complex running wheel × 8 days (aged cohort)', tools: [] },
+      { id: 'perf-aged', name: 'Aged perfusion', icon: '⚕', color: '#7B241C', startDay: 378, duration: 1, shape: 'endpoint',
+        cohortIds: ['aged-ko','aged-ctl'], details: 'Perfusion at ~P453', tools: [] }
+    ],
+    notes: [
+      'Aging cohort is induced at the same time as adults but housed for ~12 months before behavioural testing.',
+      'Set the calendar-anchor date to see exactly when each phase falls — useful for leave / weekend planning.'
+    ]
+  };
+  renderAll(); dirty();
+}
+
+function printSheet() {
+  const d = new Date();
+  document.body.setAttribute('data-printdate', `${pad2(d.getDate())}/${pad2(d.getMonth()+1)}/${d.getFullYear()}`);
+  document.querySelectorAll('.phase-card').forEach(c => c.classList.remove('collapsed'));
+  window.print();
+}
+window.addEventListener('beforeprint', () => {
+  document.querySelectorAll('.phase-card').forEach(c => c.classList.remove('collapsed'));
+});
+
+document.getElementById('title').addEventListener('input', updTitle);
+document.getElementById('subtitle').addEventListener('input', updSubtitle);
+
+if (!load()) { state = myrfTemplate(); }
+renderAll();
+</script>
+</body>
+</html>
